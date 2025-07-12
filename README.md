@@ -2,6 +2,29 @@
 
 A Telegram bot for managing and monitoring urlwatch jobs, including crontab integration, via chat commands.
 
+## Project Structure
+```
+CronWatchBot/
+├── config/         # Bot configuration and logging setup
+│   ├── __init__.py
+│   ├── config.py.example  # Copy to config.py and fill in secrets
+│   └── logging.py
+├── handlers/       # Telegram command handlers
+│   ├── __init__.py
+│   ├── basic.py
+│   ├── crontab_manage.py
+│   └── urlwatch_manage.py
+├── helpers/        # Helper modules for urlwatch, crontab, etc.
+│   ├── __init__.py
+│   ├── crotab_helpers.py
+│   ├── urlwatch_helpers.py
+│   └── utils.py
+├── main.py         # Main entrypoint for the bot
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
+
 ## Features
 - View, add, edit, and delete urlwatch jobs from Telegram
 - Manage filters and properties for each job
@@ -31,21 +54,21 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
     pip install -r requirements.txt
     ```
 4. **Configure your bot:**
-    - Copy `config.py.example` to `config.py` (or create manually).
+    - Copy `config/config.py.example` to `config/config.py` (or create manually).
     - Add your Telegram bot token and allowed user IDs:
       ```python
       TOKEN = "your-telegram-bot-token"
       ALLOWED_USER_IDS = [123456789, ...]
       ```
-    - `config.py` is excluded from git for security.
+    - `config/config.py` is excluded from git for security (see `.gitignore`).
 
-4. **Ensure urlwatch is set up:**
+5. **Ensure urlwatch is set up:**
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
 
 ## How to Use
 - Run the bot:
     ```bash
-    python app.py
+    python main.py
     ```
 - Interact with your bot on Telegram.
 
