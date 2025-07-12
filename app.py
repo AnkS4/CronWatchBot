@@ -6,11 +6,13 @@ import logging
 import tempfile
 import shutil
 from urllib.parse import urlparse
+from typing import List, Dict, Optional
+from functools import wraps
 
 # === CONFIGURATION ===
-TOKEN = ""  # Replace with your BotFather token
-ALLOWED_USER_IDS = []     # Replace with your Telegram user ID(s) for security
-URLS_FILE = ""  # Path to your urls.yaml
+TOKEN = ""
+ALLOWED_USER_IDS = []
+URLS_FILE = ""
 
 # === LOGGING SETUP ===
 logging.basicConfig(
@@ -19,275 +21,234 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# === DECORATORS ===
+def require_auth(func):
+    """Decorator to ensure user is authorized."""
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if update.effective_user.id not in ALLOWED_USER_IDS:
+            await update.message.reply_text("❌ Unauthorized access.")
+            return
+        return await func(update, context)
+    return wrapper
+
+def handle_errors(func):
+    """Decorator for consistent error handling."""
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        try:
+            return await func(update, context)
+        except Exception as e:
+            logger.exception("Error in %s: %s", func.__name__, e)
+            await update.message.reply_text(f"❌ Operation failed: {str(e)}")
+    return wrapper
+
 # === HELPER FUNCTIONS ===
-def load_urls():
-    """Load URL entries from YAML file.
-
-    Returns
-    -------
-    list[dict]
-        A list of urlwatch job dictionaries. Returns an empty list on failure.
-    """
+def load_urls() -> List[Dict]:
+    """Load URL entries from YAML file."""
     if not os.path.exists(URLS_FILE):
-        logger.warning("URLs file not found at %s. Returning empty list.", URLS_FILE)
+        logger.warning("URLs file not found at %s", URLS_FILE)
         return []
 
     try:
         with open(URLS_FILE, "r") as f:
-            data = list(yaml.safe_load_all(f)) or []
-            data = [d for d in data if d]
-            if not isinstance(data, list):
-                raise ValueError("YAML root must be a list of urlwatch job entries.")
-            return data
+            data = list(yaml.safe_load_all(f))
+            return [entry for entry in data if entry] if data else []
     except yaml.YAMLError as e:
-        logger.exception("Invalid YAML syntax in %s: %s", URLS_FILE, e)
-    except Exception:
-        logger.exception("Unexpected error while loading URLs from %s", URLS_FILE)
-
-    return []
-    if not os.path.exists(URLS_FILE):
+        logger.error("YAML parsing error: %s", e)
         return []
-    try:
-        with open(URLS_FILE, "r") as f:
-            try:
-                data = list(yaml.safe_load_all(f))
-                return data if data else []
-            except yaml.YAMLError as e:
-                logger.error(f"YAML parsing error: {e}")
-                return []
     except Exception as e:
-        logger.error(f"Error loading URLs file: {e}")
+        logger.error("Error loading URLs file: %s", e)
         return []
 
-def save_urls(urls: list[dict]):
+def save_urls(urls: List[Dict]) -> None:
     """Write URL entries to YAML file atomically."""
     os.makedirs(os.path.dirname(URLS_FILE), exist_ok=True)
+    
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=os.path.dirname(URLS_FILE)) as tmp:
+        yaml.safe_dump_all(urls, tmp, sort_keys=False, default_flow_style=False)
+        temp_name = tmp.name
+    
+    shutil.move(temp_name, URLS_FILE)
+    logger.info("Successfully saved %d URLs to %s", len(urls), URLS_FILE)
+
+def validate_url(url: str) -> bool:
+    """Validate URL format."""
     try:
-        with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
-            yaml.safe_dump_all(urls, tmp, sort_keys=False)
-            temp_name = tmp.name
-        shutil.move(temp_name, URLS_FILE)
+        parsed = urlparse(url)
+        return bool(parsed.scheme in ("http", "https") and parsed.netloc)
     except Exception:
-        logger.exception("Failed to save URLs to %s", URLS_FILE)
-        raise
+        return False
+
+def get_display_name(entry: Dict) -> str:
+    """Get display name for URL entry."""
+    return entry.get('name', entry.get('url', 'Unnamed entry'))
+
+def validate_index(idx_str: str, urls: List[Dict]) -> Optional[int]:
+    """Validate and convert index string to integer."""
     try:
-        with open(URLS_FILE, "w") as f:
-            yaml.dump_all(urls, f, sort_keys=False)
-    except Exception as e:
-        logger.error(f"Error saving URLs file: {e}")
-        raise
-
-def validate_url(candidate: str) -> bool:
-    """Very small URL validation helper."""
-    parsed = urlparse(candidate)
-    return all([parsed.scheme in ("http", "https"), parsed.netloc])
-
-def is_authorized(user_id):
-    return user_id in ALLOWED_USER_IDS
+        idx = int(idx_str) - 1
+        if 0 <= idx < len(urls):
+            return idx
+        return None
+    except ValueError:
+        return None
 
 # === BOT COMMAND HANDLERS ===
+@require_auth
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
-        return
+    """Welcome message with available commands."""
     await update.message.reply_text(
-        "Welcome to urlwatch bot!\n"
-        "Commands:\n"
+        "🤖 *URLWatch Bot*\n\n"
+        "📋 *Commands:*\n"
         "/view - View all URLs\n"
-        "/add <url> - Add a new URL\n"
-        "/edit <index> <url> - Edit a URL\n"
-        "/delete <index> - Delete a URL"
+        "/add <url> [name] - Add a new URL\n"
+        "/edit <index> <url> [name] - Edit a URL\n"
+        "/delete <index> - Delete a URL\n\n"
+        "💡 *Tip:* Use /view to see current URLs and their indices",
+        parse_mode='Markdown'
     )
 
+@require_auth
+@handle_errors
 async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
+    """Display all configured URLs."""
+    urls = load_urls()
+    
+    if not urls:
+        await update.message.reply_text("📭 No URLs configured.")
         return
-    try:
-        urls = load_urls()
-        if not urls:
-            await update.message.reply_text("No URLs configured or failed to load YAML.")
-            return
-        msg = "\n".join([f"{i+1}. {u.get('name', u.get('url', 'No name'))}: {u.get('url', 'No URL')}" for i, u in enumerate(urls)])
-        await update.message.reply_text(f"Current URLs:\n{msg}")
-    except Exception as e:
-        logger.error(f"Error in view: {e}")
-        await update.message.reply_text(f"Error viewing URLs: {e}")
+    
+    msg_lines = ["📋 *Current URLs:*\n"]
+    for i, entry in enumerate(urls, 1):
+        name = get_display_name(entry)
+        url = entry.get('url', 'No URL')
+        msg_lines.append(f"{i}. *{name}*\n   `{url}`")
+    
+    await update.message.reply_text("\n".join(msg_lines), parse_mode='Markdown')
 
+@require_auth
+@handle_errors
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
-        return
+    """Add a new URL to monitor."""
     if not context.args:
-        await update.message.reply_text("Usage: /add <url> [name]")
+        await update.message.reply_text("❌ Usage: `/add <url> [name]`", parse_mode='Markdown')
         return
 
     new_url = context.args[0]
     custom_name = " ".join(context.args[1:]) if len(context.args) > 1 else new_url
 
     if not validate_url(new_url):
-        await update.message.reply_text("Please provide a valid http/https URL.")
+        await update.message.reply_text("❌ Please provide a valid http/https URL.")
         return
 
-    try:
-        urls = load_urls()
-        urls.append({"url": new_url, "name": custom_name})
-        save_urls(urls)
-        await update.message.reply_text(f"Added: {custom_name}")
-    except Exception as e:
-        logger.error("Error in add: %s", e, exc_info=True)
-        await update.message.reply_text("Failed to add URL due to an internal error.")
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
+    urls = load_urls()
+    
+    # Check for duplicates
+    if any(entry.get('url') == new_url for entry in urls):
+        await update.message.reply_text("⚠ URL already exists in the list.")
         return
-    if not context.args:
-        await update.message.reply_text("Usage: /add <url>")
-        return
-    new_url = context.args[0]
-    try:
-        urls = load_urls()
-        urls.append({'url': new_url})
-        save_urls(urls)
-        await update.message.reply_text(f"Added: {new_url}")
-    except Exception as e:
-        logger.error(f"Error in add: {e}")
-        await update.message.reply_text(f"Error adding URL: {e}")
+    
+    new_entry = {"name": custom_name, "url": new_url}
+    urls.append(new_entry)
+    save_urls(urls)
+    
+    await update.message.reply_text(f"✅ Added: *{custom_name}*", parse_mode='Markdown')
 
+@require_auth
+@handle_errors
 async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
-        return
-
+    """Edit an existing URL entry."""
     if len(context.args) < 2:
-        await update.message.reply_text("Usage: /edit <index> <url> [name]")
+        await update.message.reply_text("❌ Usage: `/edit <index> <url> [name]`", parse_mode='Markdown')
         return
 
-    try:
-        idx = int(context.args[0]) - 1
-    except ValueError:
-        await update.message.reply_text("Index must be a number.")
+    urls = load_urls()
+    if not urls:
+        await update.message.reply_text("📭 No URLs to edit.")
+        return
+
+    idx = validate_index(context.args[0], urls)
+    if idx is None:
+        await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
 
     new_url = context.args[1]
     new_name = " ".join(context.args[2:]) if len(context.args) > 2 else new_url
 
     if not validate_url(new_url):
-        await update.message.reply_text("Please provide a valid http/https URL.")
+        await update.message.reply_text("❌ Please provide a valid http/https URL.")
         return
 
-    try:
-        urls = load_urls()
-        if not urls:
-            await update.message.reply_text("No URLs to edit.")
-            return
-        if 0 <= idx < len(urls):
-            old_entry = urls[idx]
-            urls[idx] = {"url": new_url, "name": new_name}
-            save_urls(urls)
-            await update.message.reply_text(
-                f"Updated entry {idx+1}:\n- Old: {old_entry.get('name', old_entry.get('url'))}\n- New: {new_name}"
-            )
-        else:
-            await update.message.reply_text("Invalid index.")
-    except Exception as e:
-        logger.error("Error in edit: %s", e, exc_info=True)
-        await update.message.reply_text("Failed to edit URL due to an internal error.")
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
-        return
-    if len(context.args) < 2:
-        await update.message.reply_text("Usage: /edit <index> <url>")
-        return
-    try:
-        idx = int(context.args[0]) - 1
-        new_url = context.args[1]
-        urls = load_urls()
-        if not urls:
-            await update.message.reply_text("No URLs to edit or failed to load YAML.")
-            return
-        if 0 <= idx < len(urls):
-            old_url = urls[idx].get('url', 'No URL')
-            urls[idx]['url'] = new_url
-            save_urls(urls)
-            await update.message.reply_text(f"Changed URL {idx+1} from {old_url} to {new_url}")
-        else:
-            await update.message.reply_text("Invalid index.")
-    except ValueError:
-        await update.message.reply_text("Index must be a number.")
-    except Exception as e:
-        logger.error(f"Error in edit: {e}")
-        await update.message.reply_text(f"Error editing URL: {e}")
+    old_entry = urls[idx]
+    urls[idx] = {"name": new_name, "url": new_url}
+    
+    # Preserve existing filters if they exist
+    if 'filter' in old_entry:
+        urls[idx]['filter'] = old_entry['filter']
+    
+    save_urls(urls)
+    
+    await update.message.reply_text(
+        f"✅ Updated entry {idx+1}:\n"
+        f"*Old:* {get_display_name(old_entry)}\n"
+        f"*New:* {new_name}",
+        parse_mode='Markdown'
+    )
 
+@require_auth
+@handle_errors
 async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
-        return
+    """Delete a URL entry."""
     if not context.args:
-        await update.message.reply_text("Usage: /delete <index>")
-        return
-    try:
-        idx = int(context.args[0]) - 1
-    except ValueError:
-        await update.message.reply_text("Index must be a number.")
+        await update.message.reply_text("❌ Usage: `/delete <index>`", parse_mode='Markdown')
         return
 
-    try:
-        urls = load_urls()
-        if not urls:
-            await update.message.reply_text("No URLs to delete.")
-            return
-        if 0 <= idx < len(urls):
-            removed = urls.pop(idx)
-            save_urls(urls)
-            await update.message.reply_text(f"Deleted: {removed.get('name', removed.get('url'))}")
-        else:
-            await update.message.reply_text("Invalid index.")
-    except Exception as e:
-        logger.error("Error in delete: %s", e, exc_info=True)
-        await update.message.reply_text("Failed to delete URL due to an internal error.")
-    if not is_authorized(update.effective_user.id):
-        await update.message.reply_text("Unauthorized.")
+    urls = load_urls()
+    if not urls:
+        await update.message.reply_text("📭 No URLs to delete.")
         return
-    if not context.args:
-        await update.message.reply_text("Usage: /delete <index>")
+
+    idx = validate_index(context.args[0], urls)
+    if idx is None:
+        await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
-    try:
-        idx = int(context.args[0]) - 1
-        urls = load_urls()
-        if not urls:
-            await update.message.reply_text("No URLs to delete or failed to load YAML.")
-            return
-        if 0 <= idx < len(urls):
-            removed = urls.pop(idx)
-            save_urls(urls)
-            await update.message.reply_text(f"Deleted: {removed.get('url', 'No URL')}")
-        else:
-            await update.message.reply_text("Invalid index.")
-    except ValueError:
-        await update.message.reply_text("Index must be a number.")
-    except Exception as e:
-        logger.error(f"Error in delete: {e}")
-        await update.message.reply_text(f"Error deleting URL: {e}")
+
+    removed = urls.pop(idx)
+    save_urls(urls)
+    
+    await update.message.reply_text(f"🗑 Deleted: *{get_display_name(removed)}*", parse_mode='Markdown')
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """Global error handler that logs exceptions and notifies the user."""
-    logger.exception("Unhandled exception while processing update %s: %s", update, context.error)
+    """Global error handler."""
+    logger.exception("Unhandled exception: %s", context.error)
     if isinstance(update, Update) and update.effective_message:
-        await update.effective_message.reply_text("An unexpected error occurred. The incident has been logged.")
+        await update.effective_message.reply_text(
+            "💥 An unexpected error occurred. Please try again or contact support."
+        )
 
 # === MAIN BOT SETUP ===
-if __name__ == "__main__":
+def main():
+    """Initialize and run the bot."""
     app = ApplicationBuilder().token(TOKEN).build()
 
     # Register command handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("view", view))
-    app.add_handler(CommandHandler("add", add))
-    app.add_handler(CommandHandler("edit", edit))
-    app.add_handler(CommandHandler("delete", delete))
+    handlers = [
+        CommandHandler("start", start),
+        CommandHandler("view", view),
+        CommandHandler("add", add),
+        CommandHandler("edit", edit),
+        CommandHandler("delete", delete),
+    ]
+    
+    for handler in handlers:
+        app.add_handler(handler)
 
     # Global error handler
     app.add_error_handler(error_handler)
 
-    logger.info("Bot is running. Press Ctrl+C to stop.")
+    logger.info("🤖 URLWatch Bot is running. Press Ctrl+C to stop.")
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
