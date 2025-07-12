@@ -114,19 +114,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🤖 *URLWatch Bot*\n\n"
         "📋 *Basic Commands:*\n"
-        "/view - View all URLs with full details\n"
-        "/add <url> [name] - Add a new URL\n"
-        "/delete <index> - Delete a URL\n\n"
+        "`/view` - View all URLs with full details\n"
+        "`/add <url> [name]` - Add a new URL\n"
+        "`/delete <index>` - Delete a URL\n\n"
         "🔧 *Edit Commands:*\n"
-        "/edit <index> <url> [name] - Edit URL & name\n"
-        "/editfilter <index> [filters...] - Edit filters\n"
-        "/editprop <index> [props...] - Edit properties\n\n"
+        "`/edit <index> <url> [name]` - Edit URL & name\n"
+        "`/editfilter <index> [filters...]` - Edit filters\n"
+        "`/editprop <index> [props...]` - Edit properties\n\n"
         "🕑 *Crontab Commands:*\n"
-        "/crontab_view - View all urlwatch jobs in crontab\n"
-        "/crontab_add <schedule> <job_index> - Add a scheduled urlwatch job\n"
-        "/crontab_edit <index> <schedule> <job_index> - Edit a scheduled job\n"
-        "/crontab_delete <index> - Delete a scheduled job\n\n"
-        "💡 *Tip:* Use /view to see current URLs and their indices\n"
+        "`/crontab_view` - View all urlwatch jobs in crontab\n"
+        "`/crontab_add <schedule> <job_index>` - Add a scheduled urlwatch job\n"
+        "`/crontab_edit <index> <schedule> <job_index>` - Edit a scheduled job\n"
+        "`/crontab_delete <index>` - Delete a scheduled job\n\n"
+        "💡 *Tip:* Use `/view` to see current URLs and their indices\n"
         "📚 Use command without args to see detailed help",
         parse_mode='Markdown'
     )
@@ -531,7 +531,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = list_urlwatch_jobs()
     if not jobs:
-        await update.message.reply_text("🕑 No urlwatch jobs found in crontab.")
+        await update.message.reply_text("🕑 No urlwatch jobs found in crontab. Use `/crontab_add` to add one.")
         return
     msg = ["🕑 *Urlwatch Jobs in Crontab:*\n"]
     for idx, job in enumerate(jobs, 1):
@@ -541,26 +541,40 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @require_auth
 @handle_errors
 async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if len(context.args) < 6:
+    """
+    Add a scheduled urlwatch job to run every N minutes.
+    Usage: /crontab_add <minutes> <job_index>
+    Example: /crontab_add 15 2
+    """
+    if len(context.args) != 2:
         await update.message.reply_text(
-            "❌ Usage: `/crontab_add <min> <hour> <dom> <month> <dow> <job_index>`\n"
-            "📝 Example: `/crontab_add 0 * * * * 2`",
+            "❌ Usage: `/crontab_add <minutes> <job_index>`\n"
+            "📝 Example: `/crontab_add 15 2` (runs job 2 every 15 minutes)",
             parse_mode='Markdown'
         )
         return
-    schedule = context.args[:5]
-    job_index = context.args[5]
     try:
-        job_index_int = int(job_index)
+        minutes = int(context.args[0])
+        job_index_int = int(context.args[1])
+        if minutes <= 0:
+            raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ Invalid job index.")
+        await update.message.reply_text(
+            "❌ Invalid arguments. Minutes must be a positive integer.\n"
+            "Use `/crontab_view` to see available jobs.",
+            parse_mode='Markdown'
+        )
         return
     cron = get_cron()
     command = build_urlwatch_command(job_index_int)
-    job = cron.new(command=command, comment=f"urlwatch-bot-{job_index}")
-    job.setall(" ".join(schedule))
+    schedule = f"*/{minutes} * * * *"
+    job = cron.new(command=command, comment=f"urlwatch-bot-{job_index_int}")
+    job.setall(schedule)
     cron.write()
-    await update.message.reply_text(f"✅ Added crontab job: `{job}`", parse_mode='Markdown')
+    await update.message.reply_text(
+        f"✅ Added crontab job: `{job}`\nRuns every {minutes} minutes.",
+        parse_mode='Markdown'
+    )
 
 @require_auth
 @handle_errors
