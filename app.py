@@ -139,7 +139,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if isinstance(filter_item, dict):
                     # Handle complex filter objects
                     filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
-                    msg_lines.append(f"      {j}. ```yaml\n{filter_str}```")
+                    msg_lines.append(f"      {j}. `{filter_str}`")
                 else:
                     # Handle simple string filters
                     msg_lines.append(f"      {j}. `{filter_item}`")
@@ -151,7 +151,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for key, value in other_props.items():
                 if isinstance(value, (dict, list)):
                     value_str = yaml.dump(value, default_flow_style=False).strip()
-                    msg_lines.append(f"      {key}: ```yaml\n{value_str}```")
+                    msg_lines.append(f"      {key}: `{value_str}`")
                 else:
                     msg_lines.append(f"      {key}: `{value}`")
         
@@ -177,7 +177,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for j, filter_item in enumerate(entry['filter'], 1):
                     if isinstance(filter_item, dict):
                         filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
-                        entry_lines.append(f"      {j}. ```yaml\n{filter_str}```")
+                        entry_lines.append(f"      {j}. `{filter_str}`")
                     else:
                         entry_lines.append(f"      {j}. `{filter_item}`")
             
@@ -187,7 +187,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for key, value in other_props.items():
                     if isinstance(value, (dict, list)):
                         value_str = yaml.dump(value, default_flow_style=False).strip()
-                        entry_lines.append(f"      {key}: ```yaml\n{value_str}```")
+                        entry_lines.append(f"      {key}: `{value_str}`")
                     else:
                         entry_lines.append(f"      {key}: `{value}`")
             
@@ -305,13 +305,15 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📝 *Examples:*\n"
             "`/editfilter 1` - Remove all filters\n"
             "`/editfilter 1 html2text strip` - Set simple filters\n"
-            "`/editfilter 1 \"xpath://div[@class='price']\" html2text`\n\n"
-            "💡 *Common filters:*\n"
+            "`/editfilter 1 xpath://*[@id=\"price\"] html2text strip`\n"
+            "`/editfilter 1 element-by-id:ProductPrice html2text`\n\n"
+            "💡 *Filter types:*\n"
             "• `html2text` - Convert HTML to text\n"
             "• `strip` - Remove whitespace\n"
-            "• `element-by-id:ID` - Select by ID\n"
+            "• `element-by-id:ID` - Select by element ID\n"
+            "• `element-by-class:CLASS` - Select by class\n"
             "• `xpath:XPATH` - Select by XPath\n"
-            "• `css:SELECTOR` - Select by CSS",
+            "• `css:SELECTOR` - Select by CSS selector",
             parse_mode='Markdown'
         )
         return
@@ -337,8 +339,29 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Parse new filters
     filters = []
     for filter_arg in context.args[1:]:
-        if ':' in filter_arg:
-            # Handle complex filters like "xpath://div" or "element-by-id:myid"
+        # Handle different filter formats
+        if filter_arg.startswith('xpath:'):
+            # XPath filter
+            xpath_value = filter_arg[6:]  # Remove 'xpath:' prefix
+            filters.append({'xpath': xpath_value})
+        elif filter_arg.startswith('css:'):
+            # CSS selector filter
+            css_value = filter_arg[4:]  # Remove 'css:' prefix
+            filters.append({'css': css_value})
+        elif filter_arg.startswith('element-by-id:'):
+            # Element by ID filter
+            id_value = filter_arg[14:]  # Remove 'element-by-id:' prefix
+            filters.append({'element-by-id': id_value})
+        elif filter_arg.startswith('element-by-class:'):
+            # Element by class filter
+            class_value = filter_arg[17:]  # Remove 'element-by-class:' prefix
+            filters.append({'element-by-class': class_value})
+        elif filter_arg.startswith('element-by-tag:'):
+            # Element by tag filter
+            tag_value = filter_arg[15:]  # Remove 'element-by-tag:' prefix
+            filters.append({'element-by-tag': tag_value})
+        elif ':' in filter_arg and not filter_arg.startswith('http'):
+            # Handle other complex filters generically
             filter_type, filter_value = filter_arg.split(':', 1)
             filters.append({filter_type: filter_value})
         else:
@@ -352,7 +375,7 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, f in enumerate(filters, 1):
         if isinstance(f, dict):
             filter_str = yaml.dump(f, default_flow_style=False).strip()
-            filter_display.append(f"   {i}. ```yaml\n{filter_str}```")
+            filter_display.append(f"   {i}. `{filter_str}`")
         else:
             filter_display.append(f"   {i}. `{f}`")
     
@@ -405,7 +428,7 @@ async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for key, value in props.items():
             if isinstance(value, (dict, list)):
                 value_str = yaml.dump(value, default_flow_style=False).strip()
-                prop_lines.append(f"   {key}: ```yaml\n{value_str}```")
+                prop_lines.append(f"   {key}: `{value_str}`")
             else:
                 prop_lines.append(f"   {key}: `{value}`")
         
@@ -416,32 +439,42 @@ async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Parse and set properties
+    updated_props = []
     for prop_arg in context.args[1:]:
         if ':' not in prop_arg:
-            await update.message.reply_text(f"❌ Invalid property format: {prop_arg}")
-            continue
+            await update.message.reply_text(f"❌ Invalid property format: `{prop_arg}`. Use format: `key:value`")
+            return
         
-        key, value = prop_arg.split(':', 1)
-        
-        # Handle nested properties like "headers.Accept"
-        if '.' in key:
-            main_key, sub_key = key.split('.', 1)
-            if main_key not in urls[idx]:
-                urls[idx][main_key] = {}
-            urls[idx][main_key][sub_key] = value
-        else:
-            # Convert boolean and numeric values
-            if value.lower() in ('true', 'false'):
-                value = value.lower() == 'true'
-            elif value.isdigit():
-                value = int(value)
-            elif value.replace('.', '', 1).isdigit():
-                value = float(value)
+        try:
+            key, value = prop_arg.split(':', 1)
             
-            urls[idx][key] = value
+            # Handle nested properties like "headers.Accept"
+            if '.' in key:
+                main_key, sub_key = key.split('.', 1)
+                if main_key not in urls[idx]:
+                    urls[idx][main_key] = {}
+                urls[idx][main_key][sub_key] = value
+                updated_props.append(f"{main_key}.{sub_key}")
+            else:
+                # Convert boolean and numeric values
+                if value.lower() in ('true', 'false'):
+                    value = value.lower() == 'true'
+                elif value.isdigit():
+                    value = int(value)
+                elif value.replace('.', '', 1).isdigit():
+                    value = float(value)
+                
+                urls[idx][key] = value
+                updated_props.append(key)
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error setting property `{prop_arg}`: {str(e)}")
+            return
 
     save_urls(urls)
-    await update.message.reply_text(f"✅ Updated properties for entry {idx+1}")
+    await update.message.reply_text(
+        f"✅ Updated properties for entry {idx+1}:\n" + 
+        "\n".join([f"• `{prop}`" for prop in updated_props])
+    )
 
 @require_auth
 @handle_errors
@@ -485,6 +518,8 @@ def main():
         CommandHandler("view", view),
         CommandHandler("add", add),
         CommandHandler("edit", edit),
+        CommandHandler("editfilter", edit_filter),
+        CommandHandler("editprop", edit_property),
         CommandHandler("delete", delete),
     ]
     
