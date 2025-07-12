@@ -65,7 +65,7 @@ Start the bot and use `/start` to see available commands.
 
 3. Add a job to run urlwatch job 1 every 30 minutes:
 ```
-/crontab_add 30 1
+/crontab_add 1 30
 ```
 
 ### Full Bot Commands List
@@ -84,8 +84,8 @@ Start the bot and use `/start` to see available commands.
 
 #### Crontab Management Commands
 - `/crontab_view` — View all urlwatch jobs in crontab
-- `/crontab_add <min> <hour> <dom> <month> <dow> <job_index>` — Add a scheduled job
-- `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>` — Edit a scheduled job
+- `/crontab_add <job_index> <minutes>` — Add a scheduled job (runs the selected urlwatch job every N minutes)
+- `/crontab_edit <index> <minutes>` — Edit a scheduled job
 - `/crontab_delete <index>` — Delete a scheduled job
 
 ## Security
