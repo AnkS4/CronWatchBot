@@ -14,7 +14,7 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 ### System
 - urlwatch (installed and configured)
 - crontab (cron service enabled)
-- conda (optional, for environment management, `miniforge` works)
+- conda (recommended, for environment management, `miniforge` works)
 
 ### Python (Managed by `conda`)
 - Python (3.12 recommended)
@@ -100,9 +100,9 @@ Sets filters for job 1 to "html2text" and "strip".
 
 #### Crontab Commands
 ```
-/crontab_add 0 * * * * 2
+/crontab_add 15 2
 ```
-Adds a job to run urlwatch job 2 every hour.
+Adds a job to run urlwatch job 2 every 15 minutes.
 
 ```
 /crontab_view
