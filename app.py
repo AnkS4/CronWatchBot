@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from typing import List, Dict, Optional
 from functools import wraps
 from config import TOKEN, ALLOWED_USER_IDS
+from crontab import CronTab
 
 # Dynamically resolve the user's urlwatch configuration file path
 URLS_FILE = os.path.expanduser("~/.config/urlwatch/urls.yaml")
@@ -93,6 +94,19 @@ def validate_index(idx_str: str, urls: List[Dict]) -> Optional[int]:
     except ValueError:
         return None
 
+# === CRONTAB MANAGEMENT HELPERS ===
+def get_cron():
+    return CronTab(user=True)
+
+def list_urlwatch_jobs():
+    cron = get_cron()
+    jobs = [job for job in cron if job.comment and job.comment.startswith('urlwatch-bot-')]
+    return jobs
+
+def build_urlwatch_command(job_index: int) -> str:
+    # Adjust this command to match your urlwatch invocation
+    return f"urlwatch --jobs {job_index}"
+
 # === BOT COMMAND HANDLERS ===
 @require_auth
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,6 +121,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/edit <index> <url> [name] - Edit URL & name\n"
         "/editfilter <index> [filters...] - Edit filters\n"
         "/editprop <index> [props...] - Edit properties\n\n"
+        "🕑 *Crontab Commands:*\n"
+        "/crontab_view - View all urlwatch jobs in crontab\n"
+        "/crontab_add <schedule> <job_index> - Add a scheduled urlwatch job\n"
+        "/crontab_edit <index> <schedule> <job_index> - Edit a scheduled job\n"
+        "/crontab_delete <index> - Delete a scheduled job\n\n"
         "💡 *Tip:* Use /view to see current URLs and their indices\n"
         "📚 Use command without args to see detailed help",
         parse_mode='Markdown'
@@ -506,6 +525,94 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
             "💥 An unexpected error occurred. Please try again or contact support."
         )
 
+# === CRONTAB BOT COMMANDS ===
+@require_auth
+@handle_errors
+async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    jobs = list_urlwatch_jobs()
+    if not jobs:
+        await update.message.reply_text("🕑 No urlwatch jobs found in crontab.")
+        return
+    msg = ["🕑 *Urlwatch Jobs in Crontab:*\n"]
+    for idx, job in enumerate(jobs, 1):
+        msg.append(f"*{idx}.* `{job.slices}` `{job.command}`")
+    await update.message.reply_text("\n".join(msg), parse_mode='Markdown')
+
+@require_auth
+@handle_errors
+async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 6:
+        await update.message.reply_text(
+            "❌ Usage: `/crontab_add <min> <hour> <dom> <month> <dow> <job_index>`\n"
+            "📝 Example: `/crontab_add 0 * * * * 2`",
+            parse_mode='Markdown'
+        )
+        return
+    schedule = context.args[:5]
+    job_index = context.args[5]
+    try:
+        job_index_int = int(job_index)
+    except ValueError:
+        await update.message.reply_text("❌ Invalid job index.")
+        return
+    cron = get_cron()
+    command = build_urlwatch_command(job_index_int)
+    job = cron.new(command=command, comment=f"urlwatch-bot-{job_index}")
+    job.setall(" ".join(schedule))
+    cron.write()
+    await update.message.reply_text(f"✅ Added crontab job: `{job}`", parse_mode='Markdown')
+
+@require_auth
+@handle_errors
+async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if len(context.args) < 7:
+        await update.message.reply_text(
+            "❌ Usage: `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>`\n"
+            "📝 Example: `/crontab_edit 1 0 12 * * * 2`",
+            parse_mode='Markdown'
+        )
+        return
+    idx_str = context.args[0]
+    schedule = context.args[1:6]
+    job_index = context.args[6]
+    try:
+        idx = int(idx_str) - 1
+        job_index_int = int(job_index)
+    except ValueError:
+        await update.message.reply_text("❌ Invalid index or job index.")
+        return
+    jobs = list_urlwatch_jobs()
+    if idx < 0 or idx >= len(jobs):
+        await update.message.reply_text(f"❌ Invalid job index. Use 1-{len(jobs)}.")
+        return
+    cron = get_cron()
+    job = jobs[idx]
+    job.setall(" ".join(schedule))
+    job.set_command(build_urlwatch_command(job_index_int))
+    job.set_comment(f"urlwatch-bot-{job_index}")
+    cron.write()
+    await update.message.reply_text(f"✏ Edited crontab job {idx+1}: `{job}`", parse_mode='Markdown')
+
+@require_auth
+@handle_errors
+async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("❌ Usage: `/crontab_delete <index>`", parse_mode='Markdown')
+        return
+    try:
+        idx = int(context.args[0]) - 1
+    except ValueError:
+        await update.message.reply_text("❌ Invalid index.")
+        return
+    jobs = list_urlwatch_jobs()
+    if idx < 0 or idx >= len(jobs):
+        await update.message.reply_text(f"❌ Invalid job index. Use 1-{len(jobs)}.")
+        return
+    cron = get_cron()
+    cron.remove(jobs[idx])
+    cron.write()
+    await update.message.reply_text(f"🗑 Deleted crontab job {idx+1}.")
+
 # === MAIN BOT SETUP ===
 def main():
     """Initialize and run the bot."""
@@ -513,19 +620,21 @@ def main():
 
     # Register command handlers
     handlers = [
-        CommandHandler("start", start),
-        CommandHandler("view", view),
-        CommandHandler("add", add),
-        CommandHandler("edit", edit),
-        CommandHandler("editfilter", edit_filter),
-        CommandHandler("editprop", edit_property),
-        CommandHandler("delete", delete),
+        app.add_handler(CommandHandler("start", start))
     ]
-    
-    for handler in handlers:
-        app.add_handler(handler)
+    app.add_handler(CommandHandler("view", view))
+    app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("edit", edit))
+    app.add_handler(CommandHandler("editfilter", edit_filter))
+    app.add_handler(CommandHandler("editprop", edit_property))
+    app.add_handler(CommandHandler("delete", delete))
 
-    # Global error handler
+    # Crontab commands
+    app.add_handler(CommandHandler("crontab_view", crontab_view))
+    app.add_handler(CommandHandler("crontab_add", crontab_add))
+    app.add_handler(CommandHandler("crontab_edit", crontab_edit))
+    app.add_handler(CommandHandler("crontab_delete", crontab_delete))
+
     app.add_error_handler(error_handler)
 
     logger.info("🤖 URLWatch Bot is running. Press Ctrl+C to stop.")
