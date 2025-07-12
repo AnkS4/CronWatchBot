@@ -109,31 +109,131 @@ def build_urlwatch_command(job_index: int) -> str:
 
 # === BOT COMMAND HANDLERS ===
 @require_auth
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a detailed help message with all commands."""
+    await update.message.reply_text(
+        """
+📚 *CronWatchBot — Help & Command Guide*
+
+*👋 Getting Started:*
+Step 1. Add a website to monitor:
+   `/add <url> [optional name]`
+   ```
+   /add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
+   ```
+Step 2. View all monitored sites:
+   `/view`
+Step 3. Schedule automatic checks:
+   `/crontab_add <minutes> <job number>`
+   ```
+   /crontab_add 60 1
+   ```
+
+*🔄 Managing URLs:*
+- Edit a job:
+   `/edit <index> <url> [name]`
+   ```
+   /edit 1 https://newurl.com New Name
+   ```
+- Delete a job:
+   `/delete <index>`
+   ```
+   /delete 2
+   ```
+- Show filters or properties:
+   `/editfilter <index>`
+   `/editprop <index>`
+- Add or change filters:
+   `/editfilter <index> [filters...]`
+   ```
+   /editfilter 1 html2text strip
+   ```
+- Add or change properties:
+   `/editprop <index> [property:value] ...`
+   ```
+   /editprop 1 timeout:30
+   ```
+
+*⏰ Scheduling (Crontab):*
+- View all scheduled jobs:
+   `/crontab_view`
+- Add a schedule:
+   `/crontab_add <minutes> <job_index>`
+   ```
+   /crontab_add 15 2
+   ```
+- Edit a schedule:
+   `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>`
+   ```
+   /crontab_edit 1 0 12 * * * 2
+   ```
+- Delete a schedule:
+   `/crontab_delete <index>`
+
+💡 *Tips:*
+- Use `/view` to see all URLs and their numbers for scheduling.
+- Use `/crontab_view` to see all scheduled jobs.
+- Send any command without arguments (e.g. `/edit`) to see usage and examples.
+- Use `/start` for a quick workflow overview.
+
+If you get stuck, just try `/help` again or use `/start` for a simple introduction!
+        """,
+        parse_mode='Markdown'
+    )
+
+@require_auth
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message with available commands."""
     await update.message.reply_text(
-        "🤖 *URLWatch Bot*\n\n"
-        "📋 *Basic Commands:*\n"
-        "`/view` - View all URLs with full details\n"
-        "`/add <url> [name]` - Add a new URL\n"
-        "`/delete <index>` - Delete a URL\n\n"
-        "🔧 *Edit Commands:*\n"
-        "`/edit <index> <url> [name]` - Edit URL & name\n"
-        "`/editfilter <index> [filters...]` - Edit filters\n"
-        "`/editprop <index> [props...]` - Edit properties\n\n"
-        "🕑 *Crontab Commands:*\n"
-        "`/crontab_view` - View all urlwatch jobs in crontab\n"
-        "`/crontab_add <schedule> <job_index>` - Add a scheduled urlwatch job\n"
-        "`/crontab_edit <index> <schedule> <job_index>` - Edit a scheduled job\n"
-        "`/crontab_delete <index>` - Delete a scheduled job\n\n"
-        "💡 *Tip:* Use `/view` to see current URLs and their indices\n"
-        "📚 Use command without args to see detailed help",
+        """
+🤖 *Welcome to CronWatchBot!*
+
+*🚀 Getting Started:*
+Step 1. To start watching a website, type: `/add <url> [optional name]`
+```
+/add https://www.github.com/AnkS4/CronWatchBot CronWatchBot
+```
+Step 2. To schedule automatic checks, type: `/crontab_add <minutes> <job number>`
+```
+/crontab_add 60 1
+```
+
+💡 _Tip: Use_ `/help` _to see detailed usage help._
+        """,
         parse_mode='Markdown'
     )
 
 @require_auth
 @handle_errors
 async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display all configured URLs with enhanced formatting."""
+    urls = load_urls()
+    if not urls:
+        await update.message.reply_text("📭 *No URLs configured.*", parse_mode='Markdown')
+        return
+
+    msg_lines = ["📋 *Current URLs Monitored:*\n━━━━━━━━━━━━━━━━━━━━━━"]
+    for i, entry in enumerate(urls, 1):
+        name = get_display_name(entry)
+        url = entry.get('url', 'No URL')
+        msg_lines.append(f"\n*{i}. {name}*\n   🌐 `{url}`")
+        # Show filters if present
+        if 'filter' in entry and entry['filter']:
+            filters = entry['filter']
+            if isinstance(filters, list):
+                filters_str = ', '.join(str(f) for f in filters)
+            else:
+                filters_str = str(filters)
+            msg_lines.append(f"   🔎 Filters: `{filters_str}`")
+        # Show properties if present
+        props = [k for k in entry.keys() if k not in ('name', 'url', 'filter')]
+        if props:
+            for prop in props:
+                msg_lines.append(f"   ⚙️ {prop}: `{entry[prop]}`")
+    msg_lines.append("\n━━━━━━━━━━━━━━━━━━━━━━")
+    await update.message.reply_text("\n".join(msg_lines), parse_mode='Markdown')
+
+
     """Display all configured URLs with complete details."""
     urls = load_urls()
     
@@ -531,12 +631,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     jobs = list_urlwatch_jobs()
     if not jobs:
-        await update.message.reply_text("🕑 No urlwatch jobs found in crontab. Use `/crontab_add` to add one.")
+        await update.message.reply_text("🕑 *No urlwatch jobs found in crontab.*\nUse `/crontab_add` to add one.", parse_mode='Markdown')
         return
-    msg = ["🕑 *Urlwatch Jobs in Crontab:*\n"]
+    msg = ["🕑 *Scheduled urlwatch jobs in crontab:*\n━━━━━━━━━━━━━━━━━━━━━━"]
     for idx, job in enumerate(jobs, 1):
-        msg.append(f"*{idx}.* `{job.slices}` `{job.command}`")
+        msg.append(f"\n*{idx}.* ⏰ `{job.slices}`\n   📝 `{job.command}`")
+    msg.append("\n━━━━━━━━━━━━━━━━━━━━━━")
     await update.message.reply_text("\n".join(msg), parse_mode='Markdown')
+
 
 @require_auth
 @handle_errors
@@ -636,14 +738,13 @@ def main():
     handlers = [
         app.add_handler(CommandHandler("start", start))
     ]
+    app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("view", view))
     app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("delete", delete))
     app.add_handler(CommandHandler("edit", edit))
     app.add_handler(CommandHandler("editfilter", edit_filter))
     app.add_handler(CommandHandler("editprop", edit_property))
-    app.add_handler(CommandHandler("delete", delete))
-
-    # Crontab commands
     app.add_handler(CommandHandler("crontab_view", crontab_view))
     app.add_handler(CommandHandler("crontab_add", crontab_add))
     app.add_handler(CommandHandler("crontab_edit", crontab_edit))
