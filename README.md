@@ -10,13 +10,22 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 - Detailed help and usage instructions via `/start`
 
 ## Requirements
-- Python
+
+### System
 - urlwatch (installed and configured)
-- System crontab (cron service enabled)
-- Telegram bot token
+- crontab (cron service enabled)
+- conda (optional, for environment management)
+
+### Python
+- Python (3.12 recommended)
+
+### Python Libraries (Managed by `requirements.txt`)
 - python-telegram-bot
 - python-crontab
 - pyyaml
+
+### Other
+- Telegram bot token (create via @BotFather and keep it secret)
 
 ## Installation
 1. **Clone the repository:**
