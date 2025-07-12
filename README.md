@@ -14,9 +14,9 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 ### System
 - urlwatch (installed and configured)
 - crontab (cron service enabled)
-- conda (optional, for environment management)
+- conda (optional, for environment management, `miniforge` works)
 
-### Python
+### Python (Managed by `conda`)
 - Python (3.12 recommended)
 
 ### Python Libraries (Managed by `requirements.txt`)
