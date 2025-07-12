@@ -8,11 +8,10 @@ import shutil
 from urllib.parse import urlparse
 from typing import List, Dict, Optional
 from functools import wraps
+from config import TOKEN, ALLOWED_USER_IDS
 
-# === CONFIGURATION ===
-TOKEN = ""
-ALLOWED_USER_IDS = []
-URLS_FILE = ""
+# Dynamically resolve the user's urlwatch configuration file path
+URLS_FILE = os.path.expanduser("~/.config/urlwatch/urls.yaml")
 
 # === LOGGING SETUP ===
 logging.basicConfig(
