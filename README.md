@@ -42,14 +42,39 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 4. **Ensure urlwatch is set up:**
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
 
-## Usage
+## How to Use
 - Run the bot:
     ```bash
     python app.py
     ```
-- Interact with your bot on Telegram. Use `/start` to see available commands.
+- Interact with your bot on Telegram.
 
-### Urlwatch Management Commands
+### Quick Start for the Bot
+
+Start the bot and use `/start` to see available commands.
+
+1. Add a job to watch a website:
+```
+/add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
+```
+
+2. Edit the job to get specific information from the website:
+```
+/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
+```
+
+3. Add a job to run urlwatch job 1 every 30 minutes:
+```
+/crontab_add 30 1
+```
+
+### Full Bot Commands List
+
+#### Bot Management Commands
+- `/start` — Show quick start message
+- `/help` — Show detailed help message
+
+#### Urlwatch Management Commands
 - `/view` — View all urlwatch jobs
 - `/add <url> [name]` — Add a new job
 - `/edit <index> <url> [name]` — Edit a job's URL and name
@@ -57,49 +82,11 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 - `/editprop <index> [props...]` — Edit properties for a job
 - `/delete <index>` — Delete a job
 
-### Crontab Management Commands
+#### Crontab Management Commands
 - `/crontab_view` — View all urlwatch jobs in crontab
 - `/crontab_add <min> <hour> <dom> <month> <dow> <job_index>` — Add a scheduled job
 - `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>` — Edit a scheduled job
 - `/crontab_delete <index>` — Delete a scheduled job
-
-### Examples
-
-Start the bot and use `/start` to see available commands.
-
-#### Urlwatch Commands
-
-Shows all urlwatch jobs and their indices.
-
-```
-/view
-```
-
-Add a new job for https://github.com/AnkS4/CronWatchBot with the name "CronWatchBot Repo" to watch this repository.
-```
-/add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
-```
-
-Edit the job to get the number of stars for this repository.
-```
-/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
-```
-
-#### Crontab Commands
-Lists all urlwatch jobs currently scheduled in crontab.
-```
-/crontab_view
-```
-
-Add a job to run urlwatch job 2 every 15 minutes.
-```
-/crontab_add 15 2
-```
-
-Delete the first crontab job.
-```
-/crontab_delete 2
-```
 
 ## Security
 - Only user IDs listed in `ALLOWED_USER_IDS` can use the bot.
