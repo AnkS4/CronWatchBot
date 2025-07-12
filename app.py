@@ -124,9 +124,9 @@ Step 1. Add a website to monitor:
 Step 2. View all monitored sites:
    `/view`
 Step 3. Schedule automatic checks:
-   `/crontab_add <minutes> <job number>`
+   `/crontab_add <job number> <minutes>`
    ```
-   /crontab_add 60 1
+   /crontab_add 1 60
    ```
 
 *🔄 Managing URLs:*
@@ -158,9 +158,9 @@ Step 3. Schedule automatic checks:
 - View all scheduled jobs:
    `/crontab_view`
 - Add a schedule:
-   `/crontab_add <minutes> <job_index>`
+   `/crontab_add <job_index> <minutes>`
    ```
-   /crontab_add 15 2
+   /crontab_add 2 15
    ```
 - Edit a schedule:
    `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>`
@@ -193,9 +193,9 @@ Step 1. To start watching a website, type: `/add <url> [optional name]`
 ```
 /add https://www.github.com/AnkS4/CronWatchBot CronWatchBot
 ```
-Step 2. To schedule automatic checks, type: `/crontab_add <minutes> <job number>`
+Step 2. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
 ```
-/crontab_add 60 1
+/crontab_add 1 60
 ```
 
 💡 _Tip: Use_ `/help` _to see detailed usage help._
@@ -645,19 +645,19 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Add a scheduled urlwatch job to run every N minutes.
-    Usage: /crontab_add <minutes> <job_index>
-    Example: /crontab_add 15 2
+    Usage: /crontab_add <job_index> <minutes>
+    Example: /crontab_add 2 15
     """
     if len(context.args) != 2:
         await update.message.reply_text(
-            "❌ Usage: `/crontab_add <minutes> <job_index>`\n"
-            "📝 Example: `/crontab_add 15 2` (runs job 2 every 15 minutes)",
+            "❌ Usage: `/crontab_add <job_index> <minutes>`\n"
+            "📝 Example: `/crontab_add 2 15` (runs job 2 every 15 minutes)",
             parse_mode='Markdown'
         )
         return
     try:
-        minutes = int(context.args[0])
-        job_index_int = int(context.args[1])
+        job_index_int = int(context.args[0])
+        minutes = int(context.args[1])
         if minutes <= 0:
             raise ValueError
     except ValueError:
