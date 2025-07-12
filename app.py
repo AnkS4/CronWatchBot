@@ -189,11 +189,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🤖 *Welcome to CronWatchBot!*
 
 *🚀 Getting Started:*
+
 Step 1. To start watching a website, type: `/add <url> [optional name]`
 ```
 /add https://www.github.com/AnkS4/CronWatchBot CronWatchBot
 ```
-Step 2. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
+Step 2. To edit filters, type: `/editfilter <index> [filters...]`
+```
+/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
+```
+Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
 ```
 /crontab_add 1 60
 ```
@@ -212,7 +217,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📭 *No URLs configured.*", parse_mode='Markdown')
         return
 
-    msg_lines = ["📋 *Current URLs Monitored:*\n━━━━━━━━━━━━━━━━━━━━━━"]
+    msg_lines = ["📋 *Current URLs Monitored:*\n"]
     for i, entry in enumerate(urls, 1):
         name = get_display_name(entry)
         url = entry.get('url', 'No URL')
@@ -230,101 +235,9 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if props:
             for prop in props:
                 msg_lines.append(f"   ⚙️ {prop}: `{entry[prop]}`")
-    msg_lines.append("\n━━━━━━━━━━━━━━━━━━━━━━")
+    msg_lines.append("\n")
     await update.message.reply_text("\n".join(msg_lines), parse_mode='Markdown')
-
-
-    """Display all configured URLs with complete details."""
-    urls = load_urls()
-    
-    if not urls:
-        await update.message.reply_text("📭 No URLs configured.")
-        return
-    
-    msg_lines = ["📋 *Current URLs:*\n"]
-    for i, entry in enumerate(urls, 1):
-        name = get_display_name(entry)
-        url = entry.get('url', 'No URL')
-        
-        # Start entry display
-        msg_lines.append(f"*{i}. {name}*")
-        msg_lines.append(f"   🌐 URL: `{url}`")
-        
-        # Show filters if they exist
-        if 'filter' in entry and entry['filter']:
-            msg_lines.append("   🔍 Filters:")
-            for j, filter_item in enumerate(entry['filter'], 1):
-                if isinstance(filter_item, dict):
-                    # Handle complex filter objects
-                    filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
-                    msg_lines.append(f"      {j}. `{filter_str}`")
-                else:
-                    # Handle simple string filters
-                    msg_lines.append(f"      {j}. `{filter_item}`")
-        
-        # Show other properties if they exist
-        other_props = {k: v for k, v in entry.items() if k not in ['name', 'url', 'filter']}
-        if other_props:
-            msg_lines.append("   ⚙ Other properties:")
-            for key, value in other_props.items():
-                if isinstance(value, (dict, list)):
-                    value_str = yaml.dump(value, default_flow_style=False).strip()
-                    msg_lines.append(f"      {key}: `{value_str}`")
-                else:
-                    msg_lines.append(f"      {key}: `{value}`")
-        
-        msg_lines.append("")  # Empty line between entries
-    
-    # Split message if too long for Telegram
-    full_message = "\n".join(msg_lines)
-    if len(full_message) > 4096:
-        # Send in chunks
-        chunks = []
-        current_chunk = ["📋 *Current URLs:*\n"]
-        
-        for i, entry in enumerate(urls, 1):
-            entry_lines = []
-            name = get_display_name(entry)
-            url = entry.get('url', 'No URL')
-            
-            entry_lines.append(f"*{i}. {name}*")
-            entry_lines.append(f"   🌐 URL: `{url}`")
-            
-            if 'filter' in entry and entry['filter']:
-                entry_lines.append("   🔍 Filters:")
-                for j, filter_item in enumerate(entry['filter'], 1):
-                    if isinstance(filter_item, dict):
-                        filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
-                        entry_lines.append(f"      {j}. `{filter_str}`")
-                    else:
-                        entry_lines.append(f"      {j}. `{filter_item}`")
-            
-            other_props = {k: v for k, v in entry.items() if k not in ['name', 'url', 'filter']}
-            if other_props:
-                entry_lines.append("   ⚙ Other properties:")
-                for key, value in other_props.items():
-                    if isinstance(value, (dict, list)):
-                        value_str = yaml.dump(value, default_flow_style=False).strip()
-                        entry_lines.append(f"      {key}: `{value_str}`")
-                    else:
-                        entry_lines.append(f"      {key}: `{value}`")
-            
-            entry_lines.append("")
-            
-            entry_text = "\n".join(entry_lines)
-            if len("\n".join(current_chunk + entry_lines)) > 4000:
-                chunks.append("\n".join(current_chunk))
-                current_chunk = [f"📋 *Current URLs (continued):*\n"] + entry_lines
-            else:
-                current_chunk.extend(entry_lines)
-        
-        if current_chunk:
-            chunks.append("\n".join(current_chunk))
-        
-        for chunk in chunks:
-            await update.message.reply_text(chunk, parse_mode='Markdown')
-    else:
-        await update.message.reply_text(full_message, parse_mode='Markdown')
+    return
 
 @require_auth
 @handle_errors
@@ -498,8 +411,11 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filter_display.append(f"   {i}. `{f}`")
     
     await update.message.reply_text(
+        (
         f"✅ Updated filters for entry {idx+1}:\n"
-        f"🔍 *New filters:*\n" + "\n".join(filter_display),
+            f"🔍 *New filters:*\n" + "\n".join(filter_display) +
+            "\n\n🔧 Add it to crontab with `/crontab_add <job number> <minutes>`"
+        ),
         parse_mode='Markdown'
     )
 
@@ -633,10 +549,9 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not jobs:
         await update.message.reply_text("🕑 *No urlwatch jobs found in crontab.*\nUse `/crontab_add` to add one.", parse_mode='Markdown')
         return
-    msg = ["🕑 *Scheduled urlwatch jobs in crontab:*\n━━━━━━━━━━━━━━━━━━━━━━"]
+    msg = ["🕑 *Scheduled urlwatch jobs in crontab:*\n"]
     for idx, job in enumerate(jobs, 1):
         msg.append(f"\n*{idx}.* ⏰ `{job.slices}`\n   📝 `{job.command}`")
-    msg.append("\n━━━━━━━━━━━━━━━━━━━━━━")
     await update.message.reply_text("\n".join(msg), parse_mode='Markdown')
 
 
