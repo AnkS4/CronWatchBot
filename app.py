@@ -100,19 +100,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message with available commands."""
     await update.message.reply_text(
         "🤖 *URLWatch Bot*\n\n"
-        "📋 *Commands:*\n"
-        "/view - View all URLs\n"
+        "📋 *Basic Commands:*\n"
+        "/view - View all URLs with full details\n"
         "/add <url> [name] - Add a new URL\n"
-        "/edit <index> <url> [name] - Edit a URL\n"
         "/delete <index> - Delete a URL\n\n"
-        "💡 *Tip:* Use /view to see current URLs and their indices",
+        "🔧 *Edit Commands:*\n"
+        "/edit <index> <url> [name] - Edit URL & name\n"
+        "/editfilter <index> [filters...] - Edit filters\n"
+        "/editprop <index> [props...] - Edit properties\n\n"
+        "💡 *Tip:* Use /view to see current URLs and their indices\n"
+        "📚 Use command without args to see detailed help",
         parse_mode='Markdown'
     )
 
 @require_auth
 @handle_errors
 async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Display all configured URLs."""
+    """Display all configured URLs with complete details."""
     urls = load_urls()
     
     if not urls:
@@ -123,16 +127,100 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, entry in enumerate(urls, 1):
         name = get_display_name(entry)
         url = entry.get('url', 'No URL')
-        msg_lines.append(f"{i}. *{name}*\n   `{url}`")
+        
+        # Start entry display
+        msg_lines.append(f"*{i}. {name}*")
+        msg_lines.append(f"   🌐 URL: `{url}`")
+        
+        # Show filters if they exist
+        if 'filter' in entry and entry['filter']:
+            msg_lines.append("   🔍 Filters:")
+            for j, filter_item in enumerate(entry['filter'], 1):
+                if isinstance(filter_item, dict):
+                    # Handle complex filter objects
+                    filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
+                    msg_lines.append(f"      {j}. ```yaml\n{filter_str}```")
+                else:
+                    # Handle simple string filters
+                    msg_lines.append(f"      {j}. `{filter_item}`")
+        
+        # Show other properties if they exist
+        other_props = {k: v for k, v in entry.items() if k not in ['name', 'url', 'filter']}
+        if other_props:
+            msg_lines.append("   ⚙ Other properties:")
+            for key, value in other_props.items():
+                if isinstance(value, (dict, list)):
+                    value_str = yaml.dump(value, default_flow_style=False).strip()
+                    msg_lines.append(f"      {key}: ```yaml\n{value_str}```")
+                else:
+                    msg_lines.append(f"      {key}: `{value}`")
+        
+        msg_lines.append("")  # Empty line between entries
     
-    await update.message.reply_text("\n".join(msg_lines), parse_mode='Markdown')
+    # Split message if too long for Telegram
+    full_message = "\n".join(msg_lines)
+    if len(full_message) > 4096:
+        # Send in chunks
+        chunks = []
+        current_chunk = ["📋 *Current URLs:*\n"]
+        
+        for i, entry in enumerate(urls, 1):
+            entry_lines = []
+            name = get_display_name(entry)
+            url = entry.get('url', 'No URL')
+            
+            entry_lines.append(f"*{i}. {name}*")
+            entry_lines.append(f"   🌐 URL: `{url}`")
+            
+            if 'filter' in entry and entry['filter']:
+                entry_lines.append("   🔍 Filters:")
+                for j, filter_item in enumerate(entry['filter'], 1):
+                    if isinstance(filter_item, dict):
+                        filter_str = yaml.dump(filter_item, default_flow_style=False).strip()
+                        entry_lines.append(f"      {j}. ```yaml\n{filter_str}```")
+                    else:
+                        entry_lines.append(f"      {j}. `{filter_item}`")
+            
+            other_props = {k: v for k, v in entry.items() if k not in ['name', 'url', 'filter']}
+            if other_props:
+                entry_lines.append("   ⚙ Other properties:")
+                for key, value in other_props.items():
+                    if isinstance(value, (dict, list)):
+                        value_str = yaml.dump(value, default_flow_style=False).strip()
+                        entry_lines.append(f"      {key}: ```yaml\n{value_str}```")
+                    else:
+                        entry_lines.append(f"      {key}: `{value}`")
+            
+            entry_lines.append("")
+            
+            entry_text = "\n".join(entry_lines)
+            if len("\n".join(current_chunk + entry_lines)) > 4000:
+                chunks.append("\n".join(current_chunk))
+                current_chunk = [f"📋 *Current URLs (continued):*\n"] + entry_lines
+            else:
+                current_chunk.extend(entry_lines)
+        
+        if current_chunk:
+            chunks.append("\n".join(current_chunk))
+        
+        for chunk in chunks:
+            await update.message.reply_text(chunk, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(full_message, parse_mode='Markdown')
 
 @require_auth
 @handle_errors
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Add a new URL to monitor."""
+    """Add a new URL to monitor with interactive setup."""
     if not context.args:
-        await update.message.reply_text("❌ Usage: `/add <url> [name]`", parse_mode='Markdown')
+        await update.message.reply_text(
+            "❌ Usage: `/add <url> [name]`\n\n"
+            "📝 *Examples:*\n"
+            "`/add https://example.com`\n"
+            "`/add https://example.com My Website`\n\n"
+            "💡 After adding, you can use `/editfilter <index>` to add filters.",
+            parse_mode='Markdown'
+        )
         return
 
     new_url = context.args[0]
@@ -153,14 +241,29 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     urls.append(new_entry)
     save_urls(urls)
     
-    await update.message.reply_text(f"✅ Added: *{custom_name}*", parse_mode='Markdown')
+    await update.message.reply_text(
+        f"✅ Added: *{custom_name}*\n\n"
+        f"📋 Entry #{len(urls)} created with basic configuration.\n"
+        f"🔧 Use `/editfilter {len(urls)}` to add filters\n"
+        f"🔧 Use `/editprop {len(urls)}` to add other properties",
+        parse_mode='Markdown'
+    )
 
 @require_auth
 @handle_errors
 async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Edit an existing URL entry."""
+    """Edit basic URL entry (name and URL only)."""
     if len(context.args) < 2:
-        await update.message.reply_text("❌ Usage: `/edit <index> <url> [name]`", parse_mode='Markdown')
+        await update.message.reply_text(
+            "❌ Usage: `/edit <index> <url> [name]`\n\n"
+            "📝 *Examples:*\n"
+            "`/edit 1 https://newurl.com`\n"
+            "`/edit 1 https://newurl.com New Name`\n\n"
+            "💡 *Other edit commands:*\n"
+            "🔧 `/editfilter <index>` - Edit filters\n"
+            "🔧 `/editprop <index>` - Edit other properties",
+            parse_mode='Markdown'
+        )
         return
 
     urls = load_urls()
@@ -181,11 +284,7 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     old_entry = urls[idx]
-    urls[idx] = {"name": new_name, "url": new_url}
-    
-    # Preserve existing filters if they exist
-    if 'filter' in old_entry:
-        urls[idx]['filter'] = old_entry['filter']
+    urls[idx] = {**old_entry, "name": new_name, "url": new_url}
     
     save_urls(urls)
     
@@ -195,6 +294,154 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"*New:* {new_name}",
         parse_mode='Markdown'
     )
+
+@require_auth
+@handle_errors
+async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Edit filters for a URL entry."""
+    if len(context.args) < 1:
+        await update.message.reply_text(
+            "❌ Usage: `/editfilter <index> [filter1] [filter2] ...`\n\n"
+            "📝 *Examples:*\n"
+            "`/editfilter 1` - Remove all filters\n"
+            "`/editfilter 1 html2text strip` - Set simple filters\n"
+            "`/editfilter 1 \"xpath://div[@class='price']\" html2text`\n\n"
+            "💡 *Common filters:*\n"
+            "• `html2text` - Convert HTML to text\n"
+            "• `strip` - Remove whitespace\n"
+            "• `element-by-id:ID` - Select by ID\n"
+            "• `xpath:XPATH` - Select by XPath\n"
+            "• `css:SELECTOR` - Select by CSS",
+            parse_mode='Markdown'
+        )
+        return
+
+    urls = load_urls()
+    if not urls:
+        await update.message.reply_text("📭 No URLs to edit.")
+        return
+
+    idx = validate_index(context.args[0], urls)
+    if idx is None:
+        await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
+        return
+
+    if len(context.args) == 1:
+        # Remove all filters
+        if 'filter' in urls[idx]:
+            del urls[idx]['filter']
+        save_urls(urls)
+        await update.message.reply_text(f"✅ Removed all filters from entry {idx+1}")
+        return
+
+    # Parse new filters
+    filters = []
+    for filter_arg in context.args[1:]:
+        if ':' in filter_arg:
+            # Handle complex filters like "xpath://div" or "element-by-id:myid"
+            filter_type, filter_value = filter_arg.split(':', 1)
+            filters.append({filter_type: filter_value})
+        else:
+            # Handle simple filters like "html2text", "strip"
+            filters.append(filter_arg)
+
+    urls[idx]['filter'] = filters
+    save_urls(urls)
+    
+    filter_display = []
+    for i, f in enumerate(filters, 1):
+        if isinstance(f, dict):
+            filter_str = yaml.dump(f, default_flow_style=False).strip()
+            filter_display.append(f"   {i}. ```yaml\n{filter_str}```")
+        else:
+            filter_display.append(f"   {i}. `{f}`")
+    
+    await update.message.reply_text(
+        f"✅ Updated filters for entry {idx+1}:\n"
+        f"🔍 *New filters:*\n" + "\n".join(filter_display),
+        parse_mode='Markdown'
+    )
+
+@require_auth
+@handle_errors
+async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Edit other properties for a URL entry."""
+    if len(context.args) < 1:
+        await update.message.reply_text(
+            "❌ Usage: `/editprop <index> [property:value] ...`\n\n"
+            "📝 *Examples:*\n"
+            "`/editprop 1` - Show current properties\n"
+            "`/editprop 1 timeout:30` - Set timeout\n"
+            "`/editprop 1 user_agent:MyBot headers.Accept:text/html`\n\n"
+            "💡 *Common properties:*\n"
+            "• `timeout:30` - Request timeout\n"
+            "• `user_agent:MyBot` - Custom user agent\n"
+            "• `headers.Accept:text/html` - HTTP headers\n"
+            "• `encoding:utf-8` - Text encoding\n"
+            "• `ignore_connection_errors:true` - Ignore errors",
+            parse_mode='Markdown'
+        )
+        return
+
+    urls = load_urls()
+    if not urls:
+        await update.message.reply_text("📭 No URLs to edit.")
+        return
+
+    idx = validate_index(context.args[0], urls)
+    if idx is None:
+        await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
+        return
+
+    if len(context.args) == 1:
+        # Show current properties
+        entry = urls[idx]
+        props = {k: v for k, v in entry.items() if k not in ['name', 'url', 'filter']}
+        if not props:
+            await update.message.reply_text(f"📋 Entry {idx+1} has no additional properties.")
+            return
+        
+        prop_lines = []
+        for key, value in props.items():
+            if isinstance(value, (dict, list)):
+                value_str = yaml.dump(value, default_flow_style=False).strip()
+                prop_lines.append(f"   {key}: ```yaml\n{value_str}```")
+            else:
+                prop_lines.append(f"   {key}: `{value}`")
+        
+        await update.message.reply_text(
+            f"📋 Properties for entry {idx+1}:\n" + "\n".join(prop_lines),
+            parse_mode='Markdown'
+        )
+        return
+
+    # Parse and set properties
+    for prop_arg in context.args[1:]:
+        if ':' not in prop_arg:
+            await update.message.reply_text(f"❌ Invalid property format: {prop_arg}")
+            continue
+        
+        key, value = prop_arg.split(':', 1)
+        
+        # Handle nested properties like "headers.Accept"
+        if '.' in key:
+            main_key, sub_key = key.split('.', 1)
+            if main_key not in urls[idx]:
+                urls[idx][main_key] = {}
+            urls[idx][main_key][sub_key] = value
+        else:
+            # Convert boolean and numeric values
+            if value.lower() in ('true', 'false'):
+                value = value.lower() == 'true'
+            elif value.isdigit():
+                value = int(value)
+            elif value.replace('.', '', 1).isdigit():
+                value = float(value)
+            
+            urls[idx][key] = value
+
+    save_urls(urls)
+    await update.message.reply_text(f"✅ Updated properties for entry {idx+1}")
 
 @require_auth
 @handle_errors
