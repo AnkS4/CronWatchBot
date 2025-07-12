@@ -77,47 +77,41 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 
 ### Examples
 
+Start the bot and use `/start` to see available commands.
+
 #### Urlwatch Commands
-```
-/view
-```
+
 Shows all urlwatch jobs and their indices.
 
 ```
-/add https://example.com My Example Job
+/view
 ```
-Adds a new job for https://example.com with the name "My Example Job".
 
+Add a new job for https://github.com/AnkS4/CronWatchBot with the name "CronWatchBot Repo" to watch this repository.
 ```
-/edit 2 https://another.com Another Name
+/add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
 ```
-Edits job 2 to use a new URL and name.
 
+Edit the job to get the number of stars for this repository.
 ```
-/editfilter 1 html2text strip
+/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
 ```
-Sets filters for job 1 to "html2text" and "strip".
 
 #### Crontab Commands
-```
-/crontab_add 15 2
-```
-Adds a job to run urlwatch job 2 every 15 minutes.
-
+Lists all urlwatch jobs currently scheduled in crontab.
 ```
 /crontab_view
 ```
-Lists all urlwatch jobs currently scheduled in crontab.
 
+Add a job to run urlwatch job 2 every 15 minutes.
 ```
-/crontab_edit 1 30 6 * * * 3
+/crontab_add 15 2
 ```
-Edits the first crontab job to run job 3 every day at 6:30am.
 
+Delete the first crontab job.
 ```
-/crontab_delete 1
+/crontab_delete 2
 ```
-Deletes the first crontab job.
 
 ## Security
 - Only user IDs listed in `ALLOWED_USER_IDS` can use the bot.
