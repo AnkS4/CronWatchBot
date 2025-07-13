@@ -10,6 +10,7 @@ def require_auth(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.id not in ALLOWED_USER_IDS:
+            logger.warning("Unauthorized access attempt by %s", update.effective_user.id)
             await update.message.reply_text("❌ Unauthorized access.")
             return
         return await func(update, context)
@@ -29,6 +30,7 @@ def handle_errors(func):
 @handle_errors
 async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display all configured URLs with enhanced formatting."""
+    logger.info("View command requested by %s", update.effective_user.id)
     urls = load_urls()
     if not urls:
         await update.message.reply_text("📭 *No URLs configured.*", parse_mode='Markdown')
@@ -59,17 +61,23 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @handle_errors
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Add a new URL to monitor with interactive setup."""
+    logger.info("Add command requested by %s", update.effective_user.id)
     if not context.args:
         await update.message.reply_text(
             "❌ Usage: `/add <url> [name]`\n\n"
             "📝 *Examples:*\n"
-            "`/add https://example.com`\n"
-            "`/add https://example.com My Website`\n\n"
-            "💡 After adding, you can use `/editfilter <index>` to add filters.",
+            "`/add https://github.com/AnkS4/CronWatchBot`\n"
+            " or `/add https://github.com/AnkS4/CronWatchBot CronWatchBot`\n"
+            "💡 Use `/help` to see detailed usage help.",
             parse_mode='Markdown'
         )
         return
     new_url = context.args[0]
+    # Handle schemaless URLs by prepending https:// if needed
+    if not new_url.startswith(('http://', 'https://')):
+        test_url = 'https://' + new_url
+        if validate_url(test_url):
+            new_url = test_url
     custom_name = " ".join(context.args[1:]) if len(context.args) > 1 else new_url
     if not validate_url(new_url):
         await update.message.reply_text("❌ Please provide a valid http/https URL.")
@@ -85,8 +93,8 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"✅ Added: *{custom_name}*\n\n"
         f"📋 Entry #{len(urls)} created with basic configuration.\n"
-        f"🔧 Use `/editfilter {len(urls)}` to add filters\n"
-        f"🔧 Use `/editprop {len(urls)}` to add other properties",
+        f"🔧 Use `/editfilter {len(urls)} <filters...>` to add filters\n"
+        f"💡 Use `/help` to see detailed usage help.",
         parse_mode='Markdown'
     )
 
@@ -294,16 +302,20 @@ async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Delete a URL entry."""
     if not context.args:
+        logger.warning("Delete command requested by %s with no arguments", update.effective_user.id)
         await update.message.reply_text("❌ Usage: `/delete <index>`", parse_mode='Markdown')
         return
     urls = load_urls()
     if not urls:
+        logger.warning("Delete command requested by %s with no URLs to delete", update.effective_user.id)
         await update.message.reply_text("📭 No URLs to delete.")
         return
     idx = validate_index(context.args[0], urls)
     if idx is None:
+        logger.warning("Delete command requested by %s with invalid index %s", update.effective_user.id, context.args[0])
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
     removed = urls.pop(idx)
     save_urls(urls)
+    logger.info("Delete command requested by %s with index %s", update.effective_user.id, context.args[0])
     await update.message.reply_text(f"🗑 Deleted: *{get_display_name(removed)}*", parse_mode='Markdown')

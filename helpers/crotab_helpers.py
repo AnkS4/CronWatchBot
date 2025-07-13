@@ -6,7 +6,7 @@ def get_cron():
 
 def list_urlwatch_jobs():
     cron = get_cron()
-    jobs = [job for job in cron if job.comment and job.comment.startswith('urlwatch-bot-')]
+    jobs = [job for job in cron if job.comment and job.comment.startswith('cronwatch-bot-')]
     return jobs
 
 def build_urlwatch_command(job_index: int) -> str:

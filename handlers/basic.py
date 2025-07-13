@@ -8,6 +8,7 @@ def require_auth(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.effective_user.id not in ALLOWED_USER_IDS:
+            logger.warning("Unauthorized access attempt by %s", update.effective_user.id)
             await update.message.reply_text("❌ Unauthorized access.")
             return
         return await func(update, context)
@@ -16,6 +17,7 @@ def require_auth(func):
 @require_auth
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a detailed help message with all commands."""
+    logger.info("Help command requested by %s", update.effective_user.id)
     await update.message.reply_text(
         """
 📚 *CronWatchBot — Help & Command Guide*
@@ -89,6 +91,7 @@ If you get stuck, just try `/help` again or use `/start` for a simple introducti
 @require_auth
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message with available commands."""
+    logger.info("Start command requested by %s", update.effective_user.id)
     await update.message.reply_text(
         """
 🤖 *Welcome to CronWatchBot!*
