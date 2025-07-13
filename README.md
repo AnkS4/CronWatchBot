@@ -6,23 +6,20 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 ```
 CronWatchBot/
 ├── config/         # Bot configuration and logging setup
-│   ├── __init__.py
-│   ├── config.py.example  # Copy to config.py and fill in secrets
+│   ├── config.py # Main config file
+│   ├── config.py.example  # Sample config file
 │   └── logging.py
 ├── handlers/       # Telegram command handlers
-│   ├── __init__.py
 │   ├── basic.py
 │   ├── crontab_manage.py
 │   └── urlwatch_manage.py
 ├── helpers/        # Helper modules for urlwatch, crontab, etc.
-│   ├── __init__.py
 │   ├── crotab_helpers.py
 │   ├── urlwatch_helpers.py
 │   └── utils.py
 ├── main.py         # Main entrypoint for the bot
 ├── requirements.txt
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## Features
@@ -66,13 +63,14 @@ CronWatchBot/
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
 
 ## How to Use
-- Run the bot:
+- Activate your conda environment and run the bot:
     ```bash
+    conda activate cronwatchbot
     python main.py
     ```
 - Interact with your bot on Telegram.
 
-### Quick Start for the Bot
+### Quick Start for the Bot Interaction
 
 Start the bot and use `/start` to see available commands.
 
@@ -113,4 +111,4 @@ Start the bot and use `/start` to see available commands.
 
 ## Security
 - Only user IDs listed in `ALLOWED_USER_IDS` can use the bot.
-- Never commit your `config.py` to version control.
+- Never commit your `config/config.py` to version control.
