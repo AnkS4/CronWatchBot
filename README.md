@@ -2,32 +2,34 @@
 
 A Telegram bot for managing and monitoring urlwatch jobs, including crontab integration, via chat commands.
 
-## Project Structure
-```
-CronWatchBot/
-├── config/         # Bot configuration and logging setup
-│   ├── config.py # Main config file
-│   ├── config.py.example  # Sample config file
-│   └── logging.py
-├── handlers/       # Telegram command handlers
-│   ├── basic.py
-│   ├── crontab_manage.py
-│   └── urlwatch_manage.py
-├── helpers/        # Helper modules for urlwatch, crontab, etc.
-│   ├── crotab_helpers.py
-│   ├── urlwatch_helpers.py
-│   └── utils.py
-├── main.py         # Main entrypoint for the bot
-├── requirements.txt
-└── README.md
-```
-
 ## Features
 - View, add, edit, and delete urlwatch jobs from Telegram
 - Manage filters and properties for each job
 - Secure access via allowed user IDs
 - Crontab integration: view, add, edit, and delete scheduled urlwatch jobs from Telegram
 - Detailed help and usage instructions via `/start`
+
+## Project Structure
+
+```
+📁 CronWatchBot/
+├── ⚙️ config/
+│   ├── 🐍 config.py
+│   ├── 📝 config.py.example
+│   └── 🐍 logging.py
+├── 📁 handlers/
+│   ├── 🐍 basic.py
+│   ├── 🐍 crontab_manage.py
+│   └── 🐍 urlwatch_manage.py
+├── 📁 helpers/
+│   ├── 🐍 crotab_helpers.py
+│   ├── 🐍 urlwatch_helpers.py
+│   └── 🐍 utils.py
+├── 🐍 main.py
+├── 📜 LICENSE
+├── 📄 requirements.txt
+└── 📄 README.md
+```
 
 ## Requirements
 - urlwatch (installed and configured)
