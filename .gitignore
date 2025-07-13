@@ -68,8 +68,7 @@ docs/_build/
 
 # IPython
 profile_default/
-ipython_config.py
-
+ipython_
 # pyenv
 .python-version
 
@@ -95,7 +94,7 @@ env.bak/
 venv/
 
 # Exclude secrets/config
-config.py
+**/config.py
 
 # Other
 *.swp
