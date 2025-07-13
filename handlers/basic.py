@@ -1,22 +1,11 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from functools import wraps
 from config.logging import logger
-from config import ALLOWED_USER_IDS
+from .shared import auth_and_error_handler
 
-def require_auth(func):
-    @wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.effective_user.id not in ALLOWED_USER_IDS:
-            logger.warning("Unauthorized access attempt by %s", update.effective_user.id)
-            await update.message.reply_text("❌ Unauthorized access.")
-            return
-        return await func(update, context)
-    return wrapper
-
-@require_auth
+@auth_and_error_handler
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send a detailed help message with all commands."""
+    """Send help message."""
     logger.info("Help command requested by %s", update.effective_user.id)
     await update.message.reply_text(
         """
@@ -88,9 +77,9 @@ If you get stuck, just try `/help` again or use `/start` for a simple introducti
         parse_mode='Markdown'
     )
 
-@require_auth
+@auth_and_error_handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcome message with available commands."""
+    """Welcome message."""
     logger.info("Start command requested by %s", update.effective_user.id)
     await update.message.reply_text(
         """
@@ -104,7 +93,7 @@ Step 1. To start watching a website, type: `/add <url> [optional name]`
 ```
 Step 2. To edit filters, type: `/editfilter <index> [filters...]`
 ```
-/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
+/editfilter 1 xpath://span[@id=\"repo-stars-counter-star\"] html2text strip
 ```
 Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
 ```
@@ -115,3 +104,8 @@ Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>
         """,
         parse_mode='Markdown'
     )
+
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle unknown commands."""
+    if update.message and update.message.text and update.message.text.startswith("/"):
+        await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")
