@@ -1,11 +1,13 @@
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from config import TOKEN
 from handlers import basic, urlwatch_manage, crontab_manage
+from config.logging import install_telegram_http_filter
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+    # Attach HTTP log simplification filter now that PTB loggers are initialized
+    install_telegram_http_filter()
     
-    # Simplified handler registration
     handlers = [
         ("start", basic.start), ("help", basic.help_command),
         ("view", urlwatch_manage.view), ("add", urlwatch_manage.add),

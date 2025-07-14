@@ -9,6 +9,7 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """View scheduled jobs."""
     jobs = list_urlwatch_jobs()
     if not jobs:
+        logger.info("No scheduled jobs")
         await update.message.reply_text("🕑 *No scheduled jobs.*", parse_mode='Markdown')
         return
     
@@ -16,6 +17,7 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for idx, job in enumerate(jobs, 1):
         msg.append(f"*{idx}.* ⏰ `{job.slices}` - `{job.command}`")
     
+    logger.info("Scheduled jobs: %s", msg)
     await update.message.reply_text("\n".join(msg), parse_mode='Markdown')
 
 @auth_and_error_handler
@@ -28,6 +30,7 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if minutes <= 0:
             raise ValueError
     except ValueError:
+        logger.error("Invalid arguments: %s", context.args)
         await update.message.reply_text("❌ Invalid arguments. Use positive integers.")
         return
     
@@ -44,6 +47,7 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         schedule = f"0 0 */{days} * *"
         human = f"every {days} day(s)"
     else:
+        logger.error("Invalid interval: %s", minutes)
         await update.message.reply_text("❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples.")
         return
     
@@ -52,7 +56,8 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     job = cron.new(command=command, comment=f"cronwatch-bot-{job_index}")
     job.setall(schedule)
     cron.write()
-    
+
+    logger.info("Added job: runs %s", human)
     await update.message.reply_text(f"✅ Added job: runs {human}")
 
 @auth_and_error_handler
@@ -63,11 +68,13 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = int(context.args[0]) - 1
         minutes = int(context.args[1])
     except ValueError:
+        logger.error("Invalid arguments: %s", context.args)
         await update.message.reply_text("❌ Invalid arguments.")
         return
     
     jobs = list_urlwatch_jobs()
     if idx < 0 or idx >= len(jobs):
+        logger.error("Invalid index: %s", idx)
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(jobs)}.")
         return
     
@@ -75,6 +82,7 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     job.setall(f"*/{minutes} * * * *")
     get_cron().write()
     
+    logger.info("Updated job %s: runs every %s minutes", idx+1, minutes)
     await update.message.reply_text(f"✅ Updated job {idx+1}")
 
 @auth_and_error_handler
@@ -84,11 +92,13 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         idx = int(context.args[0]) - 1
     except ValueError:
+        logger.error("Invalid index: %s", context.args)
         await update.message.reply_text("❌ Invalid index.")
         return
     
     jobs = list_urlwatch_jobs()
     if idx < 0 or idx >= len(jobs):
+        logger.error("Invalid index: %s", idx)
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(jobs)}.")
         return
     
@@ -96,4 +106,5 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cron.remove(jobs[idx])
     cron.write()
     
+    logger.info("Deleted job %s", idx+1)
     await update.message.reply_text(f"🗑 Deleted job {idx+1}")

@@ -11,6 +11,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("View command requested by %s", update.effective_user.id)
     urls = load_urls()
     if not urls:
+        logger.info("No URLs configured")
         await update.message.reply_text("📭 *No URLs configured.*", parse_mode='Markdown')
         return
     
@@ -29,6 +30,7 @@ async def view(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if props:
             msg.append(f"   ⚙️ `{'; '.join(props)}`")
     
+    logger.info("View command response: %s", "\n".join(msg))
     await update.message.reply_text("\n".join(msg), parse_mode='Markdown')
 
 @auth_and_error_handler
@@ -40,11 +42,13 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_url = 'https://' + new_url
     
     if not validate_url(new_url):
+        logger.error("Invalid URL: %s", new_url)
         await update.message.reply_text("❌ Invalid URL.")
         return
     
     urls = load_urls()
     if any(entry.get('url') == new_url for entry in urls):
+        logger.warning("URL already exists: %s", new_url)
         await update.message.reply_text("⚠ URL already exists.")
         return
     
@@ -52,6 +56,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     urls.append({"name": name, "url": new_url})
     save_urls(urls)
     
+    logger.info("Added URL: %s", new_url)
     await update.message.reply_text(
         f"✅ Added: *{name}*\n📋 Entry #{len(urls)} created.",
         parse_mode='Markdown'
@@ -63,16 +68,19 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Edit URL entry."""
     urls = load_urls()
     if not urls:
+        logger.error("No URLs to edit")
         await update.message.reply_text("📭 No URLs to edit.")
         return
     
     idx = validate_index(context.args[0], urls)
     if idx is None:
+        logger.error("Invalid index: %s", context.args[0])
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
     
     new_url = context.args[1]
     if not validate_url(new_url):
+        logger.error("Invalid URL: %s", new_url)
         await update.message.reply_text("❌ Invalid URL.")
         return
     
@@ -81,6 +89,7 @@ async def edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     urls[idx].update({"name": name, "url": new_url})
     save_urls(urls)
     
+    logger.info("Updated entry %s: %s → %s", idx+1, old_name, name)
     await update.message.reply_text(
         f"✅ Updated entry {idx+1}: *{old_name}* → *{name}*",
         parse_mode='Markdown'
@@ -96,17 +105,20 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Edit filters."""
     urls = load_urls()
     if not urls:
+        logger.error("No URLs to edit")
         await update.message.reply_text("📭 No URLs to edit.")
         return
     
     idx = validate_index(context.args[0], urls)
     if idx is None:
+        logger.error("Invalid index: %s", context.args[0])
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
     
     if len(context.args) == 1:
         urls[idx].pop('filter', None)
         save_urls(urls)
+        logger.info("Removed filters from entry %s", idx+1)
         await update.message.reply_text(f"✅ Removed filters from entry {idx+1}")
         return
     
@@ -121,6 +133,7 @@ async def edit_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     urls[idx]['filter'] = filters
     save_urls(urls)
     
+    logger.info("Updated filters for entry %s", idx+1)
     await update.message.reply_text(
         f"✅ Updated filters for entry {idx+1}",
         parse_mode='Markdown'
@@ -136,20 +149,24 @@ async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Edit properties."""
     urls = load_urls()
     if not urls:
+        logger.error("No URLs to edit")
         await update.message.reply_text("📭 No URLs to edit.")
         return
     
     idx = validate_index(context.args[0], urls)
     if idx is None:
+        logger.error("Invalid index: %s", context.args[0])
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
     
     if len(context.args) == 1:
         props = {k: v for k, v in urls[idx].items() if k not in ['name', 'url', 'filter']}
         if not props:
+            logger.info("Entry %s has no properties", idx+1)
             await update.message.reply_text(f"📋 Entry {idx+1} has no properties.")
             return
         prop_text = "\n".join([f"   {k}: `{v}`" for k, v in props.items()])
+        logger.info("Properties for entry %s: %s", idx+1, prop_text)
         await update.message.reply_text(f"📋 Properties for entry {idx+1}:\n{prop_text}", parse_mode='Markdown')
         return
     
@@ -174,6 +191,7 @@ async def edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
             urls[idx][key] = value
     
     save_urls(urls)
+    logger.info("Updated properties for entry %s", idx+1)
     await update.message.reply_text(f"✅ Updated properties for entry {idx+1}")
 
 @auth_and_error_handler
@@ -182,14 +200,17 @@ async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Delete URL entry."""
     urls = load_urls()
     if not urls:
+        logger.error("No URLs to delete")
         await update.message.reply_text("📭 No URLs to delete.")
         return
     
     idx = validate_index(context.args[0], urls)
     if idx is None:
+        logger.error("Invalid index: %s", context.args[0])
         await update.message.reply_text(f"❌ Invalid index. Use 1-{len(urls)}.")
         return
     
     removed = urls.pop(idx)
     save_urls(urls)
+    logger.info("Deleted entry %s: %s", idx+1, removed)
     await update.message.reply_text(f"🗑 Deleted: *{get_display_name(removed)}*", parse_mode='Markdown')
