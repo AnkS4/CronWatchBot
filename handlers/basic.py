@@ -7,7 +7,8 @@ from .shared import auth_and_error_handler
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send help message."""
     logger.info("Help command requested by %s", update.effective_user.id)
-    await update.message.reply_text(
+    if update.message:
+        await update.message.reply_text(
         """
 📚 *CronWatchBot — Help & Command Guide*
 
@@ -18,7 +19,7 @@ Step 1. Add a website to monitor:
    /add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
    ```
 Step 2. View all monitored sites:
-   `/view`
+   `/list`
 Step 3. Schedule automatic checks:
    `/crontab_add <job number> <minutes>`
    ```
@@ -59,15 +60,15 @@ Step 3. Schedule automatic checks:
    /crontab_add 2 15
    ```
 - Edit a schedule:
-   `/crontab_edit <index> <min> <hour> <dom> <month> <dow> <job_index>`
+   `/crontab_edit <index> <minutes>`
    ```
-   /crontab_edit 1 0 12 * * * 2
+   /crontab_edit 1 30
    ```
 - Delete a schedule:
    `/crontab_delete <index>`
 
 💡 *Tips:*
-- Use `/view` to see all URLs and their numbers for scheduling.
+- Use `/list` to see all URLs and their numbers for scheduling.
 - Use `/crontab_view` to see all scheduled jobs.
 - Send any command without arguments (e.g. `/edit`) to see usage and examples.
 - Use `/start` for a quick workflow overview.
@@ -75,13 +76,14 @@ Step 3. Schedule automatic checks:
 If you get stuck, just try `/help` again or use `/start` for a simple introduction!
         """,
         parse_mode='Markdown'
-    )
+        )
 
 @auth_and_error_handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message."""
     logger.info("Start command requested by %s", update.effective_user.id)
-    await update.message.reply_text(
+    if update.message:
+        await update.message.reply_text(
         """
 🤖 *Welcome to CronWatchBot!*
 
@@ -105,7 +107,9 @@ Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>
         parse_mode='Markdown'
     )
 
+@auth_and_error_handler
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle unknown commands."""
+    logger.info("Unknown command received from %s: %s", update.effective_user.id, update.message.text if update.message else "No message")
     if update.message and update.message.text and update.message.text.startswith("/"):
         await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")
