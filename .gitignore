@@ -78,6 +78,9 @@ Pipfile.lock
 # poetry
 poetry.lock
 
+# Lock files (ignores uv, etc.)
+*.lock
+
 # mypy
 .mypy_cache/
 .dmypy.json

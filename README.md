@@ -14,8 +14,8 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 ```
 📁 CronWatchBot/
 ├── ⚙️ config/
-│   ├── 🐍 config.py
-│   ├── 📝 config.py.example
+│   ├── 🐍 config.py          # Main configuration file
+│   ├── 📝 config.py.example  # Sample configuration file
 │   └── 🐍 logging.py
 ├── 📁 handlers/
 │   ├── 🐍 basic.py
@@ -27,32 +27,27 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 │   └── 🐍 utils.py
 ├── 🐍 main.py
 ├── 📜 LICENSE
-├── 📄 requirements.txt
+├── 📄 pyproject.toml  # uv managed
 └── 📄 README.md
 ```
 
 ## Requirements
 - urlwatch (installed and configured)
 - crontab (cron service enabled)
-- conda (recommended, for environment management, `miniforge` works)
+- uv (recommended, for environment management)
 - Telegram bot token and User ID (create bot and get token from @BotFather from Telegram and keep it secret)
 
 ## Installation
 1. **Clone the repository:**
     ```bash
-    git clone <repo-url>
+    git clone https://github.com/AnkS4/CronWatchBot
     cd CronWatchBot
     ```
-2. **Create and activate a conda environment (recommended):**
+2. **Create and sync uv environment:**
     ```bash
-    conda create -n cronwatchbot python=3.12
-    conda activate cronwatchbot
+    uv sync
     ```
-3. **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-4. **Configure your bot:**
+3. **Configure your bot:**
     - Copy `config/config.py.example` to `config/config.py` (or create manually).
     - Add your Telegram bot token and allowed user IDs:
       ```python
@@ -61,16 +56,15 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
       ```
     - `config/config.py` is excluded from git for security (see `.gitignore`).
 
-5. **Ensure urlwatch is set up:**
+4. **Ensure urlwatch is set up:**
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
 
 ## How to Use
-- Activate your conda environment and run the bot:
+- Run the bot:
     ```bash
-    conda activate cronwatchbot
-    python main.py
+    uv run python main.py
     ```
-- Interact with your bot on Telegram.
+- Start chatting with your bot on Telegram. Use `/start` to get started.
 
 ### Quick Start for the Bot Interaction
 
