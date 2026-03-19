@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from functools import wraps
+from typing import Callable, Any
 from config.logging import logger
 from config import ALLOWED_USER_IDS
 
@@ -15,18 +16,17 @@ ERROR_MESSAGES = {
     'invalid_args': "❌ Invalid arguments."
 }
 
-async def send_error(update: Update, error_key: str, *args):
-    """Helper to send standardized error messages"""
+async def send_error(update: Update, error_key: str, *args: Any) -> None:
+    """Send standardized error messages."""
     if not update.message:
         return
     message = ERROR_MESSAGES[error_key].format(*args) if args else ERROR_MESSAGES[error_key]
     await update.message.reply_text(message)
 
-def auth_and_error_handler(func):
-    """Combined auth and error handling decorator"""
+def auth_and_error_handler(func: Callable) -> Callable:
+    """Combined auth and error handling decorator."""
     @wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        # Auth check
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user_id = update.effective_user.id
         logger.info("Command received from user ID: %s", user_id)
         if user_id not in ALLOWED_USER_IDS:
@@ -34,7 +34,6 @@ def auth_and_error_handler(func):
             await send_error(update, 'unauthorized')
             return
         
-        # Error handling
         try:
             return await func(update, context)
         except Exception as e:
@@ -43,11 +42,11 @@ def auth_and_error_handler(func):
     
     return wrapper
 
-def validate_args(expected_count, usage_msg):
-    """Decorator for argument validation"""
-    def decorator(func):
+def validate_args(expected_count: int, usage_msg: str) -> Callable:
+    """Decorator for argument validation."""
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
             if not update.message or len(context.args) < expected_count:
                 if update.message:
                     await update.message.reply_text(usage_msg, parse_mode='Markdown')

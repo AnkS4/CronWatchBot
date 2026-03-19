@@ -13,23 +13,33 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 
 ```
 📁 CronWatchBot/
-├── ⚙️ config/
-│   ├── 🐍 config.py          # Main configuration file
-│   ├── 📝 config.py.example  # Sample configuration file
-│   └── 🐍 logging.py
-├── 📁 handlers/
-│   ├── 🐍 basic.py
-│   ├── 🐍 crontab_manage.py
-│   └── 🐍 urlwatch_manage.py
-├── 📁 helpers/
-│   ├── 🐍 crotab_helpers.py
-│   ├── 🐍 urlwatch_helpers.py
-│   └── 🐍 utils.py
-├── 🐍 main.py
-├── 📜 LICENSE
-├── 📄 pyproject.toml  # uv managed
-└── 📄 README.md
+│
+├── 📁 config/                    # Bot configuration and logging
+│   ├── config.py                 # Environment variable loading (gitignored)
+│   └── logging.py                # Logging setup & HTTP filter
+├── 📄 .env.example               # Environment variables template
+│
+├── 📁 handlers/                  # Telegram command handlers
+│   ├── basic.py                  # Core commands: /start, /help
+│   ├── crontab_manage.py         # Crontab commands: /crontab_*
+│   ├── shared.py                 # Auth & error handling utilities
+│   └── urlwatch_manage.py        # URL commands: /add, /edit, /delete, /list
+│
+├── 📁 helpers/                   # Core utilities and business logic
+│   ├── crontab_helpers.py        # Crontab operations
+│   └── urlwatch_helpers.py       # URL file operations & validation
+│
+├── 🐍 main.py                    # Bot entry point
+├── 📄 pyproject.toml             # Dependencies (uv managed)
+├── 📄 README.md                  # Documentation
+└── 📜 LICENSE                    # MIT License
 ```
+
+**Architecture Overview:**
+- **config/**: Application configuration and logging infrastructure
+- **handlers/**: Telegram bot command handlers with authentication and error handling
+- **helpers/**: Core business logic for crontab and urlwatch operations
+- **main.py**: Bot initialization and command registration
 
 ## Requirements
 - urlwatch (installed and configured)
@@ -48,13 +58,17 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
     uv sync
     ```
 3. **Configure your bot:**
-    - Copy `config/config.py.example` to `config/config.py` (or create manually).
-    - Add your Telegram bot token and allowed user IDs:
-      ```python
-      TOKEN = "your-telegram-bot-token"
-      ALLOWED_USER_IDS = [123456789, ...]
+    - Copy `.env.example` to `.env`:
+      ```bash
+      cp .env.example .env
       ```
-    - `config/config.py` is excluded from git for security (see `.gitignore`).
+    - Edit `.env` with your bot configuration:
+      ```bash
+      TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+      ALLOWED_USER_IDS=123456789,987654321
+      ```
+    - Replace the example values with your actual bot token and user IDs.
+    - `.env` is excluded from git for security (see `.gitignore`).
 
 4. **Ensure urlwatch is set up:**
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
@@ -106,5 +120,17 @@ Start the bot and use `/start` to see available commands.
 - `/crontab_delete <index>` — Delete a scheduled job
 
 ## Security
-- Only user IDs listed in `ALLOWED_USER_IDS` can use the bot.
-- Never commit your `config/config.py` to version control.
+- **Authentication**: Only user IDs listed in `ALLOWED_USER_IDS` can use the bot
+- **Configuration**: Never commit your `.env` file to version control (automatically gitignored)
+- **Environment variables**: Sensitive data stored in environment variables, not code
+- **Input validation**: All user inputs are validated before processing
+- **Command injection protection**: Job indices and parameters are strictly validated
+- **Reserved field protection**: Critical fields (url, name, filter) cannot be modified via property commands
+- **File operations**: Atomic writes prevent data corruption during concurrent operations
+
+## Environment Variables
+The bot uses the following environment variables (defined in `.env`):
+
+**Required:**
+- `TELEGRAM_BOT_TOKEN` - Your bot token from @BotFather
+- `ALLOWED_USER_IDS` - Comma-separated list of allowed Telegram user IDs

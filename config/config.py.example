@@ -1,2 +1,0 @@
-TOKEN = "your-telegram-bot-token"
-ALLOWED_USER_IDS = [123456789, ...]

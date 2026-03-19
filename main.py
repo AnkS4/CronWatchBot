@@ -1,13 +1,18 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables first
+
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from typing import Dict, Callable
 from config import TOKEN
 from handlers import basic, urlwatch_manage, crontab_manage
-from config.logging import install_telegram_http_filter
+from config.logging import install_telegram_http_filter, logger
 
-def main():
+def main() -> None:
+    """Initialize and run the CronWatchBot."""
     app = ApplicationBuilder().token(TOKEN).build()
     install_telegram_http_filter()
     
-    handlers = {
+    command_handlers: Dict[str, Callable] = {
         "start": basic.start,
         "help": basic.help_command,
         "list": urlwatch_manage.view_urls,
@@ -22,11 +27,11 @@ def main():
         "crontab_delete": crontab_manage.crontab_delete,
     }
     
-    for cmd, handler in handlers.items():
+    for cmd, handler in command_handlers.items():
         app.add_handler(CommandHandler(cmd, handler))
     
     app.add_handler(MessageHandler(filters.COMMAND, basic.unknown))
-    print("CronWatchBot is running...")
+    logger.info("CronWatchBot is running...")
     app.run_polling()
 
 if __name__ == "__main__":

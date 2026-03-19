@@ -92,12 +92,13 @@ poetry.lock
 # Environments
 .env
 .venv
-ENV/
 env.bak/
 venv/
 
-# Exclude secrets/config
-**/config.py
+# Environment variables
+.env
+.env.local
+.env.*.local
 
 # Other
 *.swp

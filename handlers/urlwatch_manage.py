@@ -1,19 +1,31 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+from typing import Optional, List, Dict, Any, Union
 from config.logging import logger
 from helpers.urlwatch_helpers import load_urls, save_urls, validate_url, get_display_name, validate_index
 from .shared import auth_and_error_handler, validate_args, send_error
 
-async def check_urls_exist(update: Update) -> list:
-    """Helper to check if URLs exist and send error if not"""
+
+def _auto_convert_type(value: str) -> Union[bool, int, float, str]:
+    """Auto-convert string value to appropriate type."""
+    if value.lower() in ('true', 'false'):
+        return value.lower() == 'true'
+    if value.isdigit():
+        return int(value)
+    if value.replace('.', '', 1).isdigit():
+        return float(value)
+    return value
+
+async def check_urls_exist(update: Update) -> Optional[List[Dict[str, Any]]]:
+    """Check if URLs exist and send error if not."""
     urls = load_urls()
     if not urls:
         await send_error(update, 'no_urls')
         return None
     return urls
 
-async def validate_and_get_index(update: Update, idx_str: str, urls: list) -> int:
-    """Helper to validate index and send error if invalid"""
+async def validate_and_get_index(update: Update, idx_str: str, urls: List[Dict[str, Any]]) -> Optional[int]:
+    """Validate index and send error if invalid."""
     idx = validate_index(idx_str, urls)
     if idx is None:
         await send_error(update, 'invalid_index', len(urls))
@@ -33,14 +45,11 @@ async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name = get_display_name(entry)
         msg.append(f"*{i}. {name}*\n   🌐 `{entry.get('url', 'No URL')}`")
         
-        # Show filters and properties concisely
-        if 'filter' in entry and entry['filter']:
-            filters = entry['filter']
+        if filters := entry.get('filter'):
             filters_str = ', '.join(str(f) for f in filters) if isinstance(filters, list) else str(filters)
             msg.append(f"   🔎 `{filters_str}`")
         
-        props = [f"{k}: {v}" for k, v in entry.items() if k not in ('name', 'url', 'filter')]
-        if props:
+        if props := [f"{k}: {v}" for k, v in entry.items() if k not in ('name', 'url', 'filter')]:
             msg.append(f"   ⚙️ `{'; '.join(props)}`")
     
     if update.message:
@@ -66,7 +75,11 @@ async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     name = " ".join(context.args[1:]) if len(context.args) > 1 else new_url
     urls.append({"name": name, "url": new_url})
-    save_urls(urls)
+    
+    if not save_urls(urls):
+        if update.message:
+            await update.message.reply_text("❌ Failed to save changes. Please try again.")
+        return
     
     logger.info("Added URL: %s", new_url)
     if update.message:
@@ -96,7 +109,11 @@ async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = " ".join(context.args[2:]) if len(context.args) > 2 else new_url
     old_name = get_display_name(urls[idx])
     urls[idx].update({"name": name, "url": new_url})
-    save_urls(urls)
+    
+    if not save_urls(urls):
+        if update.message:
+            await update.message.reply_text("❌ Failed to save changes. Please try again.")
+        return
     
     logger.info("Updated entry %s: %s → %s", idx+1, old_name, name)
     if update.message:
@@ -124,7 +141,10 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if len(context.args) == 1:
         urls[idx].pop('filter', None)
-        save_urls(urls)
+        if not save_urls(urls):
+            if update.message:
+                await update.message.reply_text("❌ Failed to save changes. Please try again.")
+            return
         if update.message:
             await update.message.reply_text(f"✅ Removed filters from entry {idx+1}")
         return
@@ -138,7 +158,12 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filters.append(arg)
     
     urls[idx]['filter'] = filters
-    save_urls(urls)
+    
+    if not save_urls(urls):
+        if update.message:
+            await update.message.reply_text("❌ Failed to save changes. Please try again.")
+        return
+    
     if update.message:
         await update.message.reply_text(f"✅ Updated filters for entry {idx+1}")
 
@@ -160,39 +185,50 @@ async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     
     if len(context.args) == 1:
-        props = {k: v for k, v in urls[idx].items() if k not in ['name', 'url', 'filter']}
-        if not props:
+        if not (props := {k: v for k, v in urls[idx].items() if k not in ['name', 'url', 'filter']}):
             if update.message:
                 await update.message.reply_text(f"📋 Entry {idx+1} has no properties.")
             return
-        prop_text = "\n".join([f"   {k}: `{v}`" for k, v in props.items()])
+        prop_text = "\n".join(f"   {k}: `{v}`" for k, v in props.items())
         if update.message:
             await update.message.reply_text(f"📋 Properties for entry {idx+1}:\n{prop_text}", parse_mode='Markdown')
         return
+    
+    reserved_keys = {'url', 'name', 'filter'}
+    updated = False
     
     for arg in context.args[1:]:
         if ':' not in arg:
             continue
         key, value = arg.split(':', 1)
-        # Handle nested properties
+        
         if '.' in key:
             main_key, sub_key = key.split('.', 1)
+            if main_key in reserved_keys:
+                if update.message:
+                    await update.message.reply_text(f"❌ Cannot modify reserved field: {main_key}")
+                continue
             if main_key not in urls[idx]:
                 urls[idx][main_key] = {}
             urls[idx][main_key][sub_key] = value
+            updated = True
         else:
-            # Auto-convert types
-            if value.lower() in ('true', 'false'):
-                value = value.lower() == 'true'
-            elif value.isdigit():
-                value = int(value)
-            elif value.replace('.', '', 1).isdigit():
-                value = float(value)
-            urls[idx][key] = value
+            if key in reserved_keys:
+                if update.message:
+                    await update.message.reply_text(f"❌ Cannot modify reserved field: {key}")
+                continue
+            urls[idx][key] = _auto_convert_type(value)
+            updated = True
     
-    save_urls(urls)
-    if update.message:
-        await update.message.reply_text(f"✅ Updated properties for entry {idx+1}")
+    if updated:
+        if not save_urls(urls):
+            if update.message:
+                await update.message.reply_text("❌ Failed to save changes. Please try again.")
+            return
+        if update.message:
+            await update.message.reply_text(f"✅ Updated properties for entry {idx+1}")
+    elif update.message:
+        await update.message.reply_text(f"⚠️ No valid properties were updated for entry {idx+1}")
 
 @auth_and_error_handler
 @validate_args(1, "❌ Usage: `/delete <index>`")
@@ -208,6 +244,11 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     removed = urls.pop(idx)
-    save_urls(urls)
+    
+    if not save_urls(urls):
+        if update.message:
+            await update.message.reply_text("❌ Failed to save changes. Please try again.")
+        return
+    
     if update.message:
         await update.message.reply_text(f"🗑 Deleted: *{get_display_name(removed)}*", parse_mode='Markdown')

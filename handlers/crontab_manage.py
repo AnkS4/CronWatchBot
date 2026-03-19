@@ -1,29 +1,29 @@
 from telegram import Update
 from telegram.ext import ContextTypes
+from typing import Optional, Tuple
 from config.logging import logger
-from helpers.crontab_helpers import get_cron, list_urlwatch_jobs, build_urlwatch_command
+from helpers.crontab_helpers import get_cron, list_urlwatch_jobs, build_urlwatch_command, CRONWATCH_COMMENT_PREFIX
 from .shared import auth_and_error_handler, validate_args, send_error
 
-def create_schedule_from_minutes(minutes: int) -> tuple:
-    """Create cron schedule and human description from minutes"""
+def create_schedule_from_minutes(minutes: int) -> Tuple[Optional[str], Optional[str]]:
+    """Create cron schedule and human description from minutes."""
     if minutes < 60:
         return f"*/{minutes} * * * *", f"every {minutes} minutes"
-    elif minutes % 60 == 0 and minutes <= 1440:
-        hours = minutes // 60
-        return f"0 */{hours} * * *", f"every {hours} hour(s)"
-    elif minutes % 1440 == 0:
+    if minutes % 1440 == 0:
         days = minutes // 1440
         return f"0 0 */{days} * *", f"every {days} day(s)"
-    else:
-        return None, None
+    if minutes % 60 == 0 and minutes <= 1440:
+        hours = minutes // 60
+        return f"0 */{hours} * * *", f"every {hours} hour(s)"
+    return None, None
 
-async def validate_job_index_and_minutes(update: Update, args: list) -> tuple:
-    """Validate job index and minutes arguments"""
+async def validate_job_index_and_minutes(update: Update, args: list) -> Tuple[Optional[int], Optional[int]]:
+    """Validate job index and minutes arguments."""
     try:
         job_index = int(args[0])
         minutes = int(args[1])
         if minutes <= 0:
-            raise ValueError
+            raise ValueError("Minutes must be positive")
         return job_index, minutes
     except (ValueError, IndexError):
         await send_error(update, 'invalid_args')
@@ -51,7 +51,7 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Add scheduled job."""
     logger.info("CrontabAdd command requested by %s", update.effective_user.id)
-    job_index, minutes = await validate_job_index_and_minutes_async(update, context.args)
+    job_index, minutes = await validate_job_index_and_minutes(update, context.args)
     if job_index is None:
         return
     
@@ -70,9 +70,16 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     cron = get_cron()
     command = build_urlwatch_command(job_index)
-    job = cron.new(command=command, comment=f"cronwatch-bot-{job_index}")
+    job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
     job.setall(schedule)
-    cron.write()
+    
+    try:
+        cron.write()
+    except Exception as e:
+        logger.error("Failed to write crontab: %s", e)
+        if update.message:
+            await update.message.reply_text("❌ Failed to save crontab. Check permissions and cron service.")
+        return
 
     logger.info("Added job: runs %s", human)
     if update.message:
@@ -102,7 +109,14 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     job = jobs[job_index - 1]  # Convert to 0-based index
     job.setall(schedule)
-    get_cron().write()
+    
+    try:
+        get_cron().write()
+    except Exception as e:
+        logger.error("Failed to write crontab: %s", e)
+        if update.message:
+            await update.message.reply_text("❌ Failed to save crontab. Check permissions and cron service.")
+        return
     
     logger.info("Updated job %s: runs %s", job_index, human)
     if update.message:
@@ -115,21 +129,27 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("CrontabDelete command requested by %s", update.effective_user.id)
     try:
         idx = int(context.args[0]) - 1
-        if idx < -1:  # Allow for 1-based indexing check
+        if idx < 0:
             raise ValueError("Invalid job index")
     except ValueError:
         await send_error(update, 'invalid_args')
         return
     
-    # Validate job index exists
     jobs = list_urlwatch_jobs()
-    if idx < 0 or idx >= len(jobs):
+    if idx >= len(jobs):
         await send_error(update, 'invalid_index', len(jobs))
         return
     
     cron = get_cron()
     cron.remove(jobs[idx])
-    cron.write()
+    
+    try:
+        cron.write()
+    except Exception as e:
+        logger.error("Failed to write crontab: %s", e)
+        if update.message:
+            await update.message.reply_text("❌ Failed to save crontab. Check permissions and cron service.")
+        return
     
     logger.info("Deleted job %s", idx+1)
     if update.message:
