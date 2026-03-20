@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from typing import Optional, List, Dict, Any, Union
 from config.logging import logger
 from helpers.urlwatch_helpers import load_urls, save_urls, validate_url, get_display_name, validate_index
+from helpers.crontab_helpers import update_crontab_indices_after_deletion, get_job_index_from_comment, list_urlwatch_jobs
 from .shared import auth_and_error_handler, validate_args, send_error
 
 
@@ -127,7 +128,8 @@ async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📝 Examples:
 • `/editfilter 1` - Remove filters
 • `/editfilter 1 html2text strip`
-• `/editfilter 1 xpath://*[@id="price"] html2text`""")
+• `/editfilter 1 xpath://*[@id="price"] html2text`
+• `/editfilter 1 css.selector:span.titleline > a html2text` - Nested filters""")
 async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Edit filters."""
     logger.info("EditFilter command requested by %s", update.effective_user.id)
@@ -153,7 +155,12 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for arg in context.args[1:]:
         if ':' in arg and not arg.startswith('http'):
             key, value = arg.split(':', 1)
-            filters.append({key: value})
+            # Support nested filters using dot notation (e.g., css.selector:value)
+            if '.' in key:
+                main_key, sub_key = key.split('.', 1)
+                filters.append({main_key: {sub_key: value}})
+            else:
+                filters.append({key: value})
         else:
             filters.append(arg)
     
@@ -250,5 +257,22 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Failed to save changes. Please try again.")
         return
     
+    # Sync crontab indices after deletion
+    # Check if deleted entry had a crontab job
+    jobs = list_urlwatch_jobs()
+    deleted_job_existed = any(get_job_index_from_comment(job.comment) == idx + 1 for job in jobs)
+    
+    # Update crontab indices
+    updated_indices = update_crontab_indices_after_deletion(idx + 1)
+    
+    # Build notification message
+    msg = f"🗑 Deleted: *{get_display_name(removed)}*"
+    
+    if deleted_job_existed:
+        msg += f"\n⏰ Removed associated crontab job"
+    
+    if updated_indices:
+        msg += f"\n🔄 Updated {len(updated_indices)} crontab job(s) to new indices"
+    
     if update.message:
-        await update.message.reply_text(f"🗑 Deleted: *{get_display_name(removed)}*", parse_mode='Markdown')
+        await update.message.reply_text(msg, parse_mode='Markdown')

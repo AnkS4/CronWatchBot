@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 from typing import Optional, Tuple
 from config.logging import logger
 from helpers.crontab_helpers import get_cron, list_urlwatch_jobs, build_urlwatch_command, CRONWATCH_COMMENT_PREFIX
+from helpers.urlwatch_helpers import load_urls
 from .shared import auth_and_error_handler, validate_args, send_error
 
 def create_schedule_from_minutes(minutes: int) -> Tuple[Optional[str], Optional[str]]:
@@ -56,7 +57,6 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Validate job index against existing URLs
-    from helpers.urlwatch_helpers import load_urls
     urls = load_urls()
     if not urls or job_index < 1 or job_index > len(urls):
         await send_error(update, 'invalid_index', len(urls) if urls else 0)

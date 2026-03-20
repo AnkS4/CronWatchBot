@@ -73,6 +73,23 @@ A Telegram bot for managing and monitoring urlwatch jobs, including crontab inte
 4. **Ensure urlwatch is set up:**
     - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
 
+5. **Configure urlwatch Telegram notifications:**
+    - Edit the urlwatch configuration file:
+      ```bash
+      nano ~/.config/urlwatch/urlwatch.yaml
+      ```
+    - Find the `telegram:` section and update it with your bot credentials:
+      ```yaml
+      telegram:
+        bot_token: 'YOUR_BOT_TOKEN'  # Same as TELEGRAM_BOT_TOKEN in .env
+        chat_id: 'YOUR_USER_ID'      # Your Telegram user ID
+        enabled: true                # Must be true to receive notifications
+        monospace: false
+        silent: false
+      ```
+    - **Important**: Set `enabled: true` to receive Telegram notifications when urlwatch detects changes.
+    - Without this configuration, urlwatch will only show changes in the terminal but won't send notifications.
+
 ## How to Use
 - Run the bot:
     ```bash
@@ -118,6 +135,42 @@ Start the bot and use `/start` to see available commands.
 - `/crontab_add <job_index> <minutes>` — Add a scheduled job (runs the selected urlwatch job every N minutes)
 - `/crontab_edit <index> <minutes>` — Edit a scheduled job
 - `/crontab_delete <index>` — Delete a scheduled job
+
+## Troubleshooting
+
+### Common Issues
+
+**No notifications from urlwatch:**
+- Ensure urlwatch Telegram reporter is enabled: `enabled: true` in `~/.config/urlwatch/urlwatch.yaml`
+- Verify bot token and chat ID match your bot configuration
+- Test manually: `urlwatch <job_index>` should send a Telegram notification
+
+**Cron jobs not running:**
+- Check cron service is enabled: `systemctl status cron`
+- Verify crontab entries: `crontab -l` should show urlwatch commands
+- Ensure urlwatch command syntax is correct: `urlwatch <index>` (not `urlwatch --jobs <index>`)
+- If you created jobs before updating the bot code, recreate them: `/crontab_delete <index>` then `/crontab_add <job_index> <minutes>`
+
+**Cron jobs continue running independently:**
+- ⚠️ **Important**: Once cron jobs are added successfully, they run independently of the bot application
+- You will continue to receive urlwatch notifications even after stopping `main.py`
+- Cron jobs are managed by the system cron service, not the Python bot process
+- **Requirements for notifications to work**:
+  - System must be running (not shut down or suspended)
+  - Internet connection must be active (to fetch URLs and send Telegram messages)
+  - urlwatch Telegram reporter must remain configured in `~/.config/urlwatch/urlwatch.yaml`
+- Use `/crontab_delete` to stop scheduled monitoring if needed
+
+**Manual configuration conflicts:**
+- ⚠️ **Important**: Do not manually edit `~/.config/urlwatch/urls.yaml` or crontab entries while using the bot
+- Manual deletions or edits can cause index mismatches between URL entries and cron jobs
+- If manual changes are made, use `/crontab_delete` and `/crontab_add` to recreate jobs with correct indices
+- The bot automatically synchronizes crontab indices when URLs are deleted via `/delete` command
+
+**Bot not responding:**
+- Check bot token is valid and matches the bot you created
+- Ensure your user ID is in `ALLOWED_USER_IDS`
+- Check logs for error messages when running the bot
 
 ## Security
 - **Authentication**: Only user IDs listed in `ALLOWED_USER_IDS` can use the bot
