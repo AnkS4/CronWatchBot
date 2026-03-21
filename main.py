@@ -1,15 +1,35 @@
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables first
 
+from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from typing import Dict, Callable
 from config import TOKEN
 from handlers import basic, urlwatch_manage, crontab_manage
 from config.logging import install_telegram_http_filter, logger
 
+async def post_init(application) -> None:
+    """Set bot commands after initialization."""
+    commands = [
+        BotCommand("start", "Get started with the bot"),
+        BotCommand("help", "Show detailed help and command guide"),
+        BotCommand("list", "View all monitored URLs"),
+        BotCommand("add", "Add a new URL to monitor"),
+        BotCommand("edit", "Edit an existing URL"),
+        BotCommand("delete", "Delete a URL"),
+        BotCommand("editfilter", "Edit filters for a URL"),
+        BotCommand("editprop", "Edit properties for a URL"),
+        BotCommand("crontab_view", "View all scheduled cron jobs"),
+        BotCommand("crontab_add", "Add a new cron job"),
+        BotCommand("crontab_edit", "Edit an existing cron job"),
+        BotCommand("crontab_delete", "Delete a cron job"),
+    ]
+    await application.bot.set_my_commands(commands)
+    logger.info("Bot commands set successfully")
+
 def main() -> None:
     """Initialize and run the CronWatchBot."""
-    app = ApplicationBuilder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     install_telegram_http_filter()
     
     command_handlers: Dict[str, Callable] = {
@@ -30,7 +50,7 @@ def main() -> None:
     for cmd, handler in command_handlers.items():
         app.add_handler(CommandHandler(cmd, handler))
     
-    app.add_handler(MessageHandler(filters.COMMAND, basic.unknown))
+    app.add_handler(MessageHandler(filters.TEXT, basic.unknown))
     logger.info("CronWatchBot is running...")
     app.run_polling()
 

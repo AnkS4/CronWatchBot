@@ -1,0 +1,17 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# Development
+*.md
+Plan.md

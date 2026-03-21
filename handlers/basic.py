@@ -16,7 +16,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Step 1. Add a website to monitor:
    `/add <url> [optional name]`
    ```
-   /add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
+   /add https://news.ycombinator.com/ Hacker News
    ```
 Step 2. View all monitored sites:
    `/list`
@@ -43,7 +43,7 @@ Step 3. Schedule automatic checks:
 - Add or change filters:
    `/editfilter <index> [filters...]`
    ```
-   /editfilter 1 html2text strip
+   /editfilter 1 css:span.titleline>a html2text
    ```
 - Add or change properties:
    `/editprop <index> [property:value] ...`
@@ -57,7 +57,7 @@ Step 3. Schedule automatic checks:
 - Add a schedule:
    `/crontab_add <job_index> <minutes>`
    ```
-   /crontab_add 2 15
+   /crontab_add 1 60
    ```
 - Edit a schedule:
    `/crontab_edit <index> <minutes>`
@@ -91,11 +91,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Step 1. To start watching a website, type: `/add <url> [optional name]`
 ```
-/add https://www.github.com/AnkS4/CronWatchBot CronWatchBot
+/add https://news.ycombinator.com/ Hacker News
 ```
 Step 2. To edit filters, type: `/editfilter <index> [filters...]`
 ```
-/editfilter 1 xpath://span[@id=\"repo-stars-counter-star\"] html2text strip
+/editfilter 1 css:span.titleline>a html2text
 ```
 Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
 ```
@@ -109,7 +109,22 @@ Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>
 
 @auth_and_error_handler
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle unknown commands."""
-    logger.info("Unknown command received from %s: %s", update.effective_user.id, update.message.text if update.message else "No message")
-    if update.message and update.message.text and update.message.text.startswith("/"):
+    """Handle unknown commands and non-command text messages."""
+    if not update.message or not update.message.text:
+        return
+    
+    message_text = update.message.text.strip()
+    is_command = message_text.startswith("/")
+    
+    logger.info("%s received from %s: %s", 
+                "Unknown command" if is_command else "Non-command message",
+                update.effective_user.id, 
+                message_text)
+    
+    if is_command:
         await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")
+    else:
+        await update.message.reply_text(
+            "👋 I only respond to commands.\n\n"
+            "Use `/help` to see available commands or `/start` to get started."
+        )

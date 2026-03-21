@@ -78,9 +78,6 @@ Pipfile.lock
 # poetry
 poetry.lock
 
-# Lock files (ignores uv, etc.)
-*.lock
-
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -103,3 +100,6 @@ venv/
 # Other
 *.swp
 *.swo
+
+# Local planning documents
+Plan.md

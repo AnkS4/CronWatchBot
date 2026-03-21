@@ -4,8 +4,14 @@ from typing import List
 CRONWATCH_COMMENT_PREFIX = 'cronwatch-bot-'
 
 def get_cron() -> CronTab:
-    """Get user's crontab instance."""
-    return CronTab(user=True)
+    """Get user's crontab instance. Creates crontab if it doesn't exist."""
+    try:
+        return CronTab(user=True)
+    except (IOError, OSError):
+        # Crontab doesn't exist yet, create it
+        cron = CronTab(user=True, tab='')
+        cron.write()
+        return cron
 
 def list_urlwatch_jobs() -> List:
     """List all urlwatch jobs managed by CronWatchBot."""

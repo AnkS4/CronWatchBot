@@ -62,13 +62,25 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_error(update, 'invalid_index', len(urls) if urls else 0)
         return
     
+    # Check if a cron job already exists for this URL index
+    cron = get_cron()
+    existing_jobs = [job for job in cron if job.comment and job.comment == f"{CRONWATCH_COMMENT_PREFIX}{job_index}"]
+    
+    if existing_jobs:
+        if update.message:
+            await update.message.reply_text(
+                f"⚠️ A cron job already exists for URL #{job_index}.\n\n"
+                f"Use `/crontab_edit {job_index} <minutes>` to update the schedule,\n"
+                f"or `/crontab_delete {len(existing_jobs)}` to remove it first."
+            )
+        return
+    
     schedule, human = create_schedule_from_minutes(minutes)
     if schedule is None:
         if update.message:
             await update.message.reply_text("❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples.")
         return
     
-    cron = get_cron()
     command = build_urlwatch_command(job_index)
     job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
     job.setall(schedule)
@@ -94,8 +106,13 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if job_index is None:
         return
     
+    # Get the cron instance first
+    cron = get_cron()
+    
+    # Get jobs from this cron instance
+    jobs = [job for job in cron if job.comment and job.comment.startswith(CRONWATCH_COMMENT_PREFIX)]
+    
     # Validate job index exists
-    jobs = list_urlwatch_jobs()
     if job_index < 1 or job_index > len(jobs):
         await send_error(update, 'invalid_index', len(jobs))
         return
@@ -107,11 +124,12 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples.")
         return
     
+    # Modify the job from this cron instance
     job = jobs[job_index - 1]  # Convert to 0-based index
     job.setall(schedule)
     
     try:
-        get_cron().write()
+        cron.write()
     except Exception as e:
         logger.error("Failed to write crontab: %s", e)
         if update.message:
