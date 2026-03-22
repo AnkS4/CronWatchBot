@@ -1,189 +1,500 @@
 # CronWatchBot
 
-A Telegram bot for managing and monitoring urlwatch jobs, including crontab integration, via chat commands.
+A Telegram bot for managing and monitoring URLWatch jobs with automated scheduling via cron. Monitor websites for changes and receive instant Telegram notifications - all controlled through simple chat commands.
 
 ## Features
-- View, add, edit, and delete urlwatch jobs from Telegram
-- Manage filters and properties for each job
-- Secure access via allowed user IDs
-- Crontab integration: view, add, edit, and delete scheduled urlwatch jobs from Telegram
-- Detailed help and usage instructions via `/start`
 
-## Project Structure
+- 🔍 **URL Monitoring** - Track website changes with URLWatch
+- 📱 **Telegram Integration** - Manage everything via Telegram chat
+- ⏰ **Automated Scheduling** - Set up cron jobs to run checks automatically
+- 🔐 **Secure Access** - User ID-based authentication
+- 🐳 **Docker Ready** - Production-ready containerized deployment
+- 💾 **Data Persistence** - Docker volumes for configuration and cron jobs
+- 🛡️ **Security Hardened** - Non-root user, resource limits
+
+## Table of Contents
+
+- [File Structure](#file-structure)
+- [Installation](#installation)
+- [Bot Commands](#bot-commands)
+- [Data Persistence](#data-persistence)
+- [Troubleshooting](#troubleshooting)
+- [Architecture](#architecture)
+- [Security](#security)
+
+---
+
+## File Structure
 
 ```
 📁 CronWatchBot/
-│
 ├── 📁 config/                    # Bot configuration and logging
-│   ├── config.py                 # Environment variable loading (gitignored)
+│   ├── config.py                 # Environment variable loading
 │   └── logging.py                # Logging setup & HTTP filter
-├── 📄 .env.example               # Environment variables template
-│
+├── 📁 docker/                    # Docker configuration
+│   ├── Dockerfile                # Multi-stage build
+│   ├── docker-compose.yml        # Orchestration with volumes
+│   └── entrypoint.sh             # Container initialization
 ├── 📁 handlers/                  # Telegram command handlers
-│   ├── basic.py                  # Core commands: /start, /help
-│   ├── crontab_manage.py         # Crontab commands: /crontab_*
-│   ├── shared.py                 # Auth & error handling utilities
-│   └── urlwatch_manage.py        # URL commands: /add, /edit, /delete, /list
-│
-├── 📁 helpers/                   # Core utilities and business logic
+│   ├── basic.py                  # /start, /help
+│   ├── crontab_manage.py         # /crontab_* commands
+│   ├── shared.py                 # Auth & error handling
+│   └── urlwatch_manage.py        # /add, /list, /delete, /edit* commands
+├── 📁 helpers/                   # Core business logic
 │   ├── crontab_helpers.py        # Crontab operations
-│   └── urlwatch_helpers.py       # URL file operations & validation
-│
+│   └── urlwatch_helpers.py       # URLWatch file operations
+├── 📄 .env.example               # Environment variables template
+├── 📜 LICENSE                    # MIT License
 ├── 🐍 main.py                    # Bot entry point
-├── 📄 pyproject.toml             # Dependencies (uv managed)
+├── 📄 pyproject.toml             # Python dependencies (uv)
 ├── 📄 README.md                  # Documentation
-└── 📜 LICENSE                    # MIT License
+└── � uv.lock                    # Locked dependency versions
 ```
 
-**Architecture Overview:**
-- **config/**: Application configuration and logging infrastructure
-- **handlers/**: Telegram bot command handlers with authentication and error handling
-- **helpers/**: Core business logic for crontab and urlwatch operations
-- **main.py**: Bot initialization and command registration
-
-## Requirements
-- urlwatch (installed and configured)
-- crontab (cron service enabled)
-- uv (recommended, for environment management)
-- Telegram bot token and User ID (create bot and get token from @BotFather from Telegram and keep it secret)
+---
 
 ## Installation
-1. **Clone the repository:**
-    ```bash
-    git clone https://github.com/AnkS4/CronWatchBot
-    cd CronWatchBot
-    ```
-2. **Create and sync uv environment:**
-    ```bash
-    uv sync
-    ```
-3. **Configure your bot:**
-    - Copy `.env.example` to `.env`:
-      ```bash
-      cp .env.example .env
-      ```
-    - Edit `.env` with your bot configuration:
-      ```bash
-      TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-      ALLOWED_USER_IDS=123456789,987654321
-      ```
-    - Replace the example values with your actual bot token and user IDs.
-    - `.env` is excluded from git for security (see `.gitignore`).
 
-4. **Ensure urlwatch is set up:**
-    - The bot expects your urlwatch jobs file at `~/.config/urlwatch/urls.yaml` by default.
+### Method 1: Docker Compose (Recommended)
 
-5. **Configure urlwatch Telegram notifications:**
-    - Edit the urlwatch configuration file:
-      ```bash
-      nano ~/.config/urlwatch/urlwatch.yaml
-      ```
-    - Find the `telegram:` section and update it with your bot credentials:
-      ```yaml
-      telegram:
-        bot_token: 'YOUR_BOT_TOKEN'  # Same as TELEGRAM_BOT_TOKEN in .env
-        chat_id: 'YOUR_USER_ID'      # Your Telegram user ID
-        enabled: true                # Must be true to receive notifications
-        monospace: false
-        silent: false
-      ```
-    - **Important**: Set `enabled: true` to receive Telegram notifications when urlwatch detects changes.
-    - Without this configuration, urlwatch will only show changes in the terminal but won't send notifications.
+**Prerequisites:**
+- Docker and Docker Compose installed
+- Telegram bot token from [@BotFather](https://t.me/botfather)
+- Your Telegram user ID from [@userinfobot](https://t.me/userinfobot)
 
-## How to Use
-- Run the bot:
-    ```bash
-    uv run python main.py
-    ```
-- Start chatting with your bot on Telegram. Use `/start` to get started.
+**Setup:**
 
-### Quick Start for the Bot Interaction
-
-Start the bot and use `/start` to see available commands.
-
-1. Add a job to watch a website:
-```
-/add https://github.com/AnkS4/CronWatchBot CronWatchBot Repo
+**1. Clone the repo:**
+```bash
+git clone https://github.com/AnkS4/CronWatchBot
+cd CronWatchBot
 ```
 
-2. Edit the job to get specific information from the website:
-```
-/editfilter 1 xpath://span[@id="repo-stars-counter-star"] html2text strip
-```
-
-3. Add a job to run urlwatch job 1 every 30 minutes:
-```
-/crontab_add 1 30
+**2. Initialize (optional):**
+```bash
+./scripts/init-volumes.sh
 ```
 
-### Full Bot Commands List
+Creates backups directory and `.env` file if needed.
 
-#### Bot Management Commands
-- `/start` — Show quick start message
-- `/help` — Show detailed help message
+**3. Configure environment:**
 
-#### Urlwatch Management Commands
-- `/view` — View all urlwatch jobs
-- `/add <url> [name]` — Add a new job
-- `/edit <index> <url> [name]` — Edit a job's URL and name
-- `/editfilter <index> [filters...]` — Edit filters for a job
-- `/editprop <index> [props...]` — Edit properties for a job
-- `/delete <index>` — Delete a job
+```bash
+nano .env  # Add your bot token and user ID
+```
 
-#### Crontab Management Commands
-- `/crontab_view` — View all urlwatch jobs in crontab
-- `/crontab_add <job_index> <minutes>` — Add a scheduled job (runs the selected urlwatch job every N minutes)
-- `/crontab_edit <index> <minutes>` — Edit a scheduled job
-- `/crontab_delete <index>` — Delete a scheduled job
+**4. Start the application:**
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+**5. Follow logs:**
+
+```bash
+docker compose -f docker/docker-compose.yml logs -f
+```
+
+That's it! Send `/start` to your bot on Telegram.
+
+**Management commands:**
+
+```bash
+# View logs
+docker compose -f docker/docker-compose.yml logs -f
+
+# Stop
+docker compose -f docker/docker-compose.yml down
+
+# Restart
+docker compose -f docker/docker-compose.yml restart
+```
+
+### Method 2: Manual Docker Build
+
+**Prerequisites:**
+- Docker installed
+- Telegram bot token from [@BotFather](https://t.me/botfather)
+- Your Telegram user ID from [@userinfobot](https://t.me/userinfobot)
+
+**Setup:**
+
+**1. Clone the repo:**
+```bash
+git clone https://github.com/AnkS4/CronWatchBot
+cd CronWatchBot
+```
+
+**2. Configure environment:**
+```bash
+cp .env.example .env
+nano .env  # Add your bot token and user ID
+```
+
+**3. Build the image:**
+```bash
+docker build -f docker/Dockerfile -t cronwatchbot:latest .
+```
+
+**4. Start the application with volumes:**
+```bash
+docker run -d \
+  --name cronwatchbot \
+  --env-file .env \
+  --restart unless-stopped \
+  -v cronwatchbot-urlwatch:/home/cronwatchbot/.config/urlwatch \
+  -v cronwatchbot-crontab:/var/spool/cron/crontabs \
+  cronwatchbot:latest
+```
+
+**Management commands:**
+```bash
+# View logs
+docker logs -f cronwatchbot
+
+# Stop
+docker stop cronwatchbot
+
+# Restart
+docker restart cronwatchbot
+
+# Remove
+docker rm -f cronwatchbot
+```
+
+### Method 3: Manual Installation (Not Recommended)
+
+**Prerequisites:**
+- Python 3.14+
+- URLWatch installed
+- Cron service enabled
+- uv package manager
+- Telegram bot token from [@BotFather](https://t.me/botfather)
+- Your Telegram user ID from [@userinfobot](https://t.me/userinfobot)
+
+**Setup:**
+
+**1. Clone the repo:**
+```bash
+git clone https://github.com/AnkS4/CronWatchBot
+cd CronWatchBot
+```
+
+**2. Install dependencies:**
+```bash
+uv sync
+```
+
+**3. Configure bot environment:**
+```bash
+cp .env.example .env
+nano .env  # Add your bot token and user ID
+```
+
+**4. Configure URLWatch:**
+```bash
+mkdir -p ~/.config/urlwatch
+nano ~/.config/urlwatch/urlwatch.yaml
+```
+
+Add Telegram reporter:
+```yaml
+report:
+  telegram:
+    bot_token: 'your_bot_token_here'
+    chat_id: 'your_user_id_here'
+    enabled: true
+```
+
+**5. Start the application:**
+```bash
+uv run python main.py
+```
+
+---
+
+## Bot Commands
+
+### URL Management
+
+- `/add <url> <name>` - Add a URL to monitor
+- `/list` - View all monitored URLs
+- `/delete <index>` - Remove a URL
+- `/editfilter <index> <filter>` - Add CSS/XPath filter and transformations
+- `/editprop <index> <property>` - Edit URL properties
+
+### Cron Job Management
+
+- `/crontab_add <url_index> <minutes>` - Schedule automated monitoring
+- `/crontab_view` - View all scheduled jobs
+- `/crontab_edit <job_index> <minutes>` - Update schedule
+- `/crontab_delete <job_index>` - Remove schedule
+
+### Example Workflow
+
+```
+# 1. Add Hacker News to monitoring
+/add https://news.ycombinator.com/ Hacker News
+
+# 2. Filter to only track story titles
+/editfilter 1 css:span.titleline>a html2text
+
+# 3. Schedule to check every 10 minutes
+/crontab_add 1 10
+
+# 4. View scheduled jobs
+/crontab_view
+```
+
+You'll now receive Telegram notifications every 10 minutes when Hacker News front page changes!
+
+---
+
+## Data Persistence
+
+### Docker Volumes
+
+All data is stored in Docker volumes:
+
+- **`urlwatch-data`** - URLWatch configuration, monitored URLs, and cache
+- **`crontab-data`** - Scheduled cron jobs
+
+### Backup
+
+**Quick backup (recommended):**
+```bash
+./scripts/backup.sh
+```
+
+Creates timestamped backups in `backups/` directory:
+- URLWatch configuration and URLs
+- Crontab data
+- Crontab entries (if container is running)
+
+**Manual backup:**
+```bash
+docker run --rm \
+  -v docker_urlwatch-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar czf /backup/urlwatch-$(date +%Y-%m-%d).tar.gz -C /data .
+```
+
+### Restore
+
+**Quick restore (recommended):**
+```bash
+./scripts/restore.sh <timestamp>
+
+# Example:
+./scripts/restore.sh 2026-03-22-161530
+```
+
+Lists available backups if no timestamp provided.
+
+**Manual restore:**
+```bash
+# Stop container first
+docker compose -f docker/docker-compose.yml down
+
+# Restore data
+docker run --rm \
+  -v docker_urlwatch-data:/data \
+  -v $(pwd)/backups:/backup \
+  alpine tar xzf /backup/urlwatch-YYYY-MM-DD.tar.gz -C /data
+
+# Restart container
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### Volume Management
+
+```bash
+# List volumes
+docker volume ls | grep cronwatchbot
+
+# Inspect volume
+docker volume inspect docker_urlwatch-data
+
+# Remove volumes (⚠️ deletes all data)
+docker compose -f docker/docker-compose.yml down -v
+```
 
 ## Troubleshooting
 
-### Common Issues
+### Bot Not Responding
 
-**No notifications from urlwatch:**
-- Ensure urlwatch Telegram reporter is enabled: `enabled: true` in `~/.config/urlwatch/urlwatch.yaml`
-- Verify bot token and chat ID match your bot configuration
-- Test manually: `urlwatch <job_index>` should send a Telegram notification
+**Check container status:**
+```bash
+docker ps -a | grep cronwatchbot
+```
 
-**Cron jobs not running:**
-- Check cron service is enabled: `systemctl status cron`
-- Verify crontab entries: `crontab -l` should show urlwatch commands
-- Ensure urlwatch command syntax is correct: `urlwatch <index>` (not `urlwatch --jobs <index>`)
-- If you created jobs before updating the bot code, recreate them: `/crontab_delete <index>` then `/crontab_add <job_index> <minutes>`
+**View logs:**
+```bash
+docker compose -f docker/docker-compose.yml logs --tail 100
+```
 
-**Cron jobs continue running independently:**
-- ⚠️ **Important**: Once cron jobs are added successfully, they run independently of the bot application
-- You will continue to receive urlwatch notifications even after stopping `main.py`
-- Cron jobs are managed by the system cron service, not the Python bot process
-- **Requirements for notifications to work**:
-  - System must be running (not shut down or suspended)
-  - Internet connection must be active (to fetch URLs and send Telegram messages)
-  - urlwatch Telegram reporter must remain configured in `~/.config/urlwatch/urlwatch.yaml`
-- Use `/crontab_delete` to stop scheduled monitoring if needed
+**Common fixes:**
+- Verify `TELEGRAM_BOT_TOKEN` and `ALLOWED_USER_IDS` in `.env`
+- Ensure your user ID is correct (get it from [@userinfobot](https://t.me/userinfobot))
+- Restart: `docker compose -f docker/docker-compose.yml restart`
 
-**Manual configuration conflicts:**
-- ⚠️ **Important**: Do not manually edit `~/.config/urlwatch/urls.yaml` or crontab entries while using the bot
-- Manual deletions or edits can cause index mismatches between URL entries and cron jobs
-- If manual changes are made, use `/crontab_delete` and `/crontab_add` to recreate jobs with correct indices
-- The bot automatically synchronizes crontab indices when URLs are deleted via `/delete` command
+### No Notifications from URLWatch
 
-**Bot not responding:**
-- Check bot token is valid and matches the bot you created
-- Ensure your user ID is in `ALLOWED_USER_IDS`
-- Check logs for error messages when running the bot
+**Check URLWatch config inside container:**
+```bash
+docker exec cronwatchbot cat /home/cronwatchbot/.config/urlwatch/urlwatch.yaml
+```
+
+Ensure `enabled: true` under `report.telegram`.
+
+**Test manually:**
+```bash
+docker exec cronwatchbot su-exec cronwatchbot urlwatch 1
+```
+
+### Cron Jobs Not Executing
+
+**Check if crond is running:**
+```bash
+docker exec cronwatchbot ps aux | grep crond
+```
+
+**View crontab entries:**
+```bash
+docker exec cronwatchbot crontab -l -u cronwatchbot
+```
+
+**Check cron execution in logs:**
+```bash
+docker compose -f docker/docker-compose.yml logs | grep urlwatch
+```
+
+### Permission Issues
+
+**Check file ownership:**
+```bash
+docker exec cronwatchbot ls -la /home/cronwatchbot/.config/urlwatch
+```
+
+**Check crontab permissions:**
+```bash
+docker exec cronwatchbot ls -la /var/spool/cron/crontabs/
+```
+
+### Duplicate Cron Jobs
+
+The bot prevents adding duplicate jobs. If you try to add a job for a URL that already has one:
+
+```
+⚠️ A cron job already exists for URL #1.
+Use /crontab_edit 1 <minutes> to update the schedule.
+```
+
+### Resource Usage
+
+**Monitor container resources:**
+```bash
+docker stats cronwatchbot
+```
+
+**Default limits:**
+- CPU: 0.5 cores max, 0.1 cores reserved
+- Memory: 256MB max, 64MB reserved
+
+Adjust in `docker/docker-compose.yml` if needed.
+
+### Health Check
+
+**Check container health:**
+```bash
+docker inspect cronwatchbot --format='{{.State.Health.Status}}'
+```
+
+Should return `healthy`. If `unhealthy`, check logs for errors.
+
+---
+
+## Architecture
+
+### Container Architecture
+
+**Base Image:** `python:3.14.2-alpine3.23`
+- Minimal Alpine Linux with BusyBox utilities
+- Multi-stage build for smaller image size
+- `uv` for fast Python dependency installation
+
+**Process Structure:**
+```
+PID 1: entrypoint.sh (root)
+  ├─ crond -f (root) - Required for BusyBox to execute user crontabs
+  └─ python main.py (cronwatchbot) - Bot process as non-root user
+```
+
+**Why crond runs as root:**
+BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>` files. The bot process itself runs as the non-root `cronwatchbot` user (UID 1000) for security.
+
+**Data Directories:**
+- `/home/cronwatchbot/.config/urlwatch` - URLWatch config and cache (owned by cronwatchbot)
+- `/var/spool/cron/crontabs` - Crontab files (owned by root, individual files by users)
+- `/app` - Application code (owned by cronwatchbot)
+
+**Project Structure:**
+- **config/** - Configuration and logging setup
+- **handlers/** - Telegram command handlers (`/start`, `/help`, `/add`, `/crontab_*`, etc.)
+- **helpers/** - Core business logic (crontab operations, URLWatch file management)
+- **docker/** - Docker configuration (Dockerfile, docker-compose.yml, entrypoint.sh)
+- **main.py** - Bot entry point and command registration
+
+---
 
 ## Security
-- **Authentication**: Only user IDs listed in `ALLOWED_USER_IDS` can use the bot
-- **Configuration**: Never commit your `.env` file to version control (automatically gitignored)
-- **Environment variables**: Sensitive data stored in environment variables, not code
-- **Input validation**: All user inputs are validated before processing
-- **Command injection protection**: Job indices and parameters are strictly validated
-- **Reserved field protection**: Critical fields (url, name, filter) cannot be modified via property commands
-- **File operations**: Atomic writes prevent data corruption during concurrent operations
+
+### Authentication & Authorization
+- **User ID Whitelist**: Only Telegram user IDs in `ALLOWED_USER_IDS` can use the bot
+- **No Public Access**: Bot rejects all unauthorized users
+- **Token Security**: Bot token stored in environment variables, never in code
+
+### Container Security
+- **Non-root User**: Bot process runs as `cronwatchbot` (UID 1000)
+- **Minimal Base**: Alpine Linux reduces attack surface
+- **SUID Binary**: Only `crontab` binary has SUID for user cron management
+- **File Permissions**: Config files restricted to 600 (owner read/write only)
+- **Resource Limits**: CPU and memory limits enforced
+
+### Input Validation
+- **Command Injection Protection**: All job indices and parameters validated
+- **Reserved Field Protection**: Critical fields (url, name, filter) protected
+- **Index Validation**: Strict bounds checking on all array access
+- **Atomic File Operations**: Prevents data corruption during concurrent writes
+
+### Best Practices
+- ✅ Never commit `.env` file (automatically gitignored)
+- ✅ Limit `ALLOWED_USER_IDS` to trusted users only
+- ✅ Monitor container logs for suspicious activity
+
+---
 
 ## Environment Variables
-The bot uses the following environment variables (defined in `.env`):
 
-**Required:**
-- `TELEGRAM_BOT_TOKEN` - Your bot token from @BotFather
-- `ALLOWED_USER_IDS` - Comma-separated list of allowed Telegram user IDs
+Required variables in `.env`:
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/botfather) | `123456789:ABCdef...` |
+| `ALLOWED_USER_IDS` | Comma-separated Telegram user IDs | `123456789,987654321` |
+
+**Get your user ID:** Send a message to [@userinfobot](https://t.me/userinfobot)
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- [URLWatch](https://github.com/thp/urlwatch) - Website change detection
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) - Telegram Bot API wrapper
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer

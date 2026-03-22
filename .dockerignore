@@ -14,4 +14,9 @@ venv/
 
 # Development
 *.md
-Plan.md
+tests/
+.pytest_cache/
+*.log
+
+# Data
+data/

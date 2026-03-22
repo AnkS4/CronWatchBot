@@ -1,10 +1,17 @@
+from typing import Optional, Tuple
+
 from telegram import Update
 from telegram.ext import ContextTypes
-from typing import Optional, Tuple
+
 from config.logging import logger
-from helpers.crontab_helpers import get_cron, list_urlwatch_jobs, build_urlwatch_command, CRONWATCH_COMMENT_PREFIX
+from helpers.crontab_helpers import (
+    CRONWATCH_COMMENT_PREFIX,
+    build_urlwatch_command,
+    get_cron,
+    list_urlwatch_jobs,
+)
 from helpers.urlwatch_helpers import load_urls
-from .shared import auth_and_error_handler, validate_args, send_error
+from .shared import auth_and_error_handler, send_error, validate_args
 
 def create_schedule_from_minutes(minutes: int) -> Tuple[Optional[str], Optional[str]]:
     """Create cron schedule and human description from minutes."""
@@ -136,7 +143,7 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Failed to save crontab. Check permissions and cron service.")
         return
     
-    logger.info("Updated job %s: runs %s", job_index, human)
+    logger.info("Edited job %d: now runs %s", job_index, human)
     if update.message:
         await update.message.reply_text(f"✅ Updated job {job_index}: runs {human}")
 

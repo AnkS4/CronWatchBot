@@ -97,9 +97,12 @@ venv/
 .env.local
 .env.*.local
 
+# Backups
+backups/
+
+# Data directories
+data/
+
 # Other
 *.swp
 *.swo
-
-# Local planning documents
-Plan.md

@@ -1,0 +1,40 @@
+services:
+  cronwatchbot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: cronwatchbot:latest
+    container_name: cronwatchbot
+    restart: unless-stopped
+    
+    env_file:
+      - ../.env
+    
+    volumes:
+      # Persist URLWatch configuration and cache
+      - urlwatch-data:/home/cronwatchbot/.config/urlwatch
+      # Persist crontab entries
+      - crontab-data:/var/spool/cron/crontabs
+    
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pgrep -f 'python.*main.py' && pgrep crond"]
+      interval: 60s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    
+    # Resource limits (optional - adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+volumes:
+  urlwatch-data:
+    driver: local
+  crontab-data:
+    driver: local

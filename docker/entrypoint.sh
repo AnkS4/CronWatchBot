@@ -32,6 +32,19 @@ EOF
     su-exec cronwatchbot chmod 600 "$URLWATCH_DIR/urlwatch.yaml"
 fi
 
+# Ensure cronwatchbot user can write to crontab directory
+# python-crontab needs write access to /var/spool/cron/crontabs/
+# Create the file if it doesn't exist
+touch /var/spool/cron/crontabs/cronwatchbot
+chown cronwatchbot:cronwatchbot /var/spool/cron/crontabs/cronwatchbot
+chmod 600 /var/spool/cron/crontabs/cronwatchbot
+
+# Ensure URLWatch cache file has correct ownership
+[ -f "$URLWATCH_DIR/cache.db" ] && chown cronwatchbot:cronwatchbot "$URLWATCH_DIR/cache.db"
+
+# Create symlink for urlwatch in system PATH for clean cron commands
+ln -sf /app/.venv/bin/urlwatch /usr/local/bin/urlwatch
+
 # -f keeps crond in the foreground so & captures its real PID for clean teardown.
 # (Without -f BusyBox crond self-daemonises and $! would be the wrong PID.)
 # Root is required: BusyBox crond reads /var/spool/cron/crontabs/<user>.

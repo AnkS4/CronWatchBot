@@ -1,10 +1,22 @@
+from typing import Any, Dict, List, Optional, Union
+
 from telegram import Update
 from telegram.ext import ContextTypes
-from typing import Optional, List, Dict, Any, Union
+
 from config.logging import logger
-from helpers.urlwatch_helpers import load_urls, save_urls, validate_url, get_display_name, validate_index
-from helpers.crontab_helpers import update_crontab_indices_after_deletion, get_job_index_from_comment, list_urlwatch_jobs
-from .shared import auth_and_error_handler, validate_args, send_error
+from helpers.crontab_helpers import (
+    get_job_index_from_comment,
+    list_urlwatch_jobs,
+    update_crontab_indices_after_deletion,
+)
+from helpers.urlwatch_helpers import (
+    get_display_name,
+    load_urls,
+    save_urls,
+    validate_index,
+    validate_url,
+)
+from .shared import auth_and_error_handler, send_error, validate_args
 
 
 def _auto_convert_type(value: str) -> Union[bool, int, float, str]:

@@ -1,12 +1,23 @@
-from dotenv import load_dotenv
-load_dotenv()  # Load environment variables first
+from typing import Dict, Callable
 
+from dotenv import load_dotenv
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
-from typing import Dict, Callable
+
 from config import TOKEN
-from handlers import basic, urlwatch_manage, crontab_manage
 from config.logging import install_telegram_http_filter, logger
+from handlers import basic, urlwatch_manage, crontab_manage
+
+load_dotenv()  # Load environment variables first
+
+# Reload existing crontab on startup to ensure crond picks up persisted jobs
+try:
+    from helpers.crontab_helpers import get_cron
+    cron = get_cron()
+    cron.write()  # This signals crond to reload via crontab command
+    logger.info("Reloaded existing crontab entries")
+except Exception as e:
+    logger.warning("Failed to reload crontab on startup: %s", e)
 
 async def post_init(application) -> None:
     """Set bot commands after initialization."""

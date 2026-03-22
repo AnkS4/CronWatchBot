@@ -1,13 +1,15 @@
 import os
-import yaml
-import tempfile
 import shutil
-from typing import List, Dict, Optional, Any
+import tempfile
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
+
+import yaml
+
 from config.logging import logger
 
 URLS_FILE = os.path.expanduser("~/.config/urlwatch/urls.yaml")
-MAX_FILE_SIZE = 10 * 1024 * 1024
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB maximum file size
 
 def load_urls() -> List[Dict[str, Any]]:
     """Load URL entries from YAML file."""

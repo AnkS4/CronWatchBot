@@ -1,14 +1,22 @@
-from crontab import CronTab
 from typing import List
 
+from crontab import CronTab
+
+from config.logging import logger
+
+# Configuration
 CRONWATCH_COMMENT_PREFIX = 'cronwatch-bot-'
 
 def get_cron() -> CronTab:
-    """Get user's crontab instance. Creates crontab if it doesn't exist."""
+    """Get crontab instance using user mode.
+    
+    Uses the crontab command internally for both reading and writing,
+    which automatically notifies BusyBox crond to reload.
+    """
     try:
         return CronTab(user=True)
-    except (IOError, OSError):
-        # Crontab doesn't exist yet, create it
+    except (IOError, OSError) as e:
+        logger.warning("Crontab doesn't exist, creating: %s", e)
         cron = CronTab(user=True, tab='')
         cron.write()
         return cron
@@ -19,7 +27,11 @@ def list_urlwatch_jobs() -> List:
     return [job for job in cron if job.comment and job.comment.startswith(CRONWATCH_COMMENT_PREFIX)]
 
 def build_urlwatch_command(job_index: int) -> str:
-    """Build urlwatch command for specific job index."""
+    """Build urlwatch command for specific job index.
+    
+    Uses simple command since urlwatch is symlinked to /usr/local/bin
+    which is in the default cron PATH.
+    """
     if not isinstance(job_index, int) or job_index < 1:
         raise ValueError(f"Invalid job_index: must be a positive integer, got {job_index}")
     return f"urlwatch {job_index}"
