@@ -35,7 +35,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
-RUN apk add --no-cache su-exec busybox-suid \
+RUN apk update && apk upgrade && \
+    apk add --no-cache su-exec busybox-suid \
     && adduser -D -u 1000 -s /sbin/nologin cronwatchbot \
     && mkdir -p /home/cronwatchbot/.config/urlwatch \
     && chown -R cronwatchbot:cronwatchbot /home/cronwatchbot \

@@ -12,6 +12,22 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 - 💾 **Data Persistence** - Docker volumes for configuration and cron jobs
 - 🛡️ **Security Hardened** - Non-root user, resource limits
 
+### 🎬 Bot Demo
+
+<div align="center">
+  <img src="docs/assets/screenshot_1.png" 
+       alt="CronWatchBot Telegram Interface"
+       style="border-radius: 12px; 
+              box-shadow: 0 8px 30px rgba(0,136,204,0.4);
+              max-width: 100%;
+              max-height: 600px;
+              border: 3px solid #0088cc;">
+</div>
+
+*Key features demonstrated: URL monitoring with `/add`, content filtering with `/editfilter`, automated scheduling with `/crontab_add`, job management with `/crontab_view`, and change notifications*
+
+---
+
 ## Table of Contents
 
 - [File Structure](#file-structure)
