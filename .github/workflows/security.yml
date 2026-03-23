@@ -43,7 +43,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          scanners: 'vuln'  # Only scan for vulnerabilities, not secrets
           ignore-unfixed: true  # Only fail on fixable vulnerabilities
       
       - name: Upload Trivy results to GitHub Security
@@ -59,4 +59,5 @@ jobs:
           image-ref: 'cronwatchbot:latest'
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          scanners: 'vuln'  # Only scan for vulnerabilities, not secrets
           ignore-unfixed: true

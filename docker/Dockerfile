@@ -37,6 +37,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN apk --no-cache upgrade && \
     apk add --no-cache su-exec busybox-suid \
+    && python -m pip uninstall -y pip \
     && adduser -D -u 1000 -s /sbin/nologin cronwatchbot \
     && mkdir -p /home/cronwatchbot/.config/urlwatch \
     && chown -R cronwatchbot:cronwatchbot /home/cronwatchbot \
