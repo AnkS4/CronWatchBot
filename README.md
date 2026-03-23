@@ -43,7 +43,11 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 ├── 📁 helpers/                   # Core business logic
 │   ├── crontab_helpers.py        # Crontab operations
 │   └── urlwatch_helpers.py       # URLWatch file operations
-├── 📄 .env.example               # Environment variables template
+├── � scripts/                   # Utility scripts
+│   ├── backup.sh                 # Backup URLWatch data & crontab
+│   ├── init-volumes.sh           # Initialize volumes & .env
+│   └── restore.sh                # Restore from backup
+├── � .env.example               # Environment variables template
 ├── 📜 LICENSE                    # MIT License
 ├── 🐍 main.py                    # Bot entry point
 ├── 📄 pyproject.toml             # Python dependencies (uv)
@@ -64,34 +68,22 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 
 **Setup:**
 
-**1. Clone the repo:**
 ```bash
+# Clone the repository
 git clone https://github.com/AnkS4/CronWatchBot
 cd CronWatchBot
-```
 
-**2. Initialize (optional):**
-```bash
-./scripts/init-volumes.sh
-```
+# Initialize (optional), creates backups directory and `.env` file if needed
+# ./scripts/init-volumes.sh
 
-Creates backups directory and `.env` file if needed.
-
-**3. Configure environment:**
-
-```bash
+# Configure environment
+cp .env.example .env
 nano .env  # Add your bot token and user ID
-```
 
-**4. Start the application:**
-
-```bash
+# Start the application
 docker compose -f docker/docker-compose.yml up -d
-```
 
-**5. Follow logs:**
-
-```bash
+# Follow logs
 docker compose -f docker/docker-compose.yml logs -f
 ```
 
@@ -119,25 +111,22 @@ docker compose -f docker/docker-compose.yml restart
 
 **Setup:**
 
-**1. Clone the repo:**
 ```bash
+# Clone the repository
 git clone https://github.com/AnkS4/CronWatchBot
 cd CronWatchBot
-```
 
-**2. Configure environment:**
-```bash
+# Initialize (optional), creates backups directory and `.env` file if needed
+# ./scripts/init-volumes.sh
+
+# Configure environment
 cp .env.example .env
 nano .env  # Add your bot token and user ID
-```
 
-**3. Build the image:**
-```bash
+# Build the image
 docker build -f docker/Dockerfile -t cronwatchbot:latest .
-```
 
-**4. Start the application with volumes:**
-```bash
+# Start the application with volumes
 docker run -d \
   --name cronwatchbot \
   --env-file .env \
@@ -174,25 +163,17 @@ docker rm -f cronwatchbot
 
 **Setup:**
 
-**1. Clone the repo:**
 ```bash
+# Clone the repository
 git clone https://github.com/AnkS4/CronWatchBot
 cd CronWatchBot
-```
 
-**2. Install dependencies:**
-```bash
-uv sync
-```
-
-**3. Configure bot environment:**
-```bash
+# Configure environment
 cp .env.example .env
 nano .env  # Add your bot token and user ID
-```
+uv sync
 
-**4. Configure URLWatch:**
-```bash
+# Configure URLWatch
 mkdir -p ~/.config/urlwatch
 nano ~/.config/urlwatch/urlwatch.yaml
 ```
@@ -206,7 +187,7 @@ report:
     enabled: true
 ```
 
-**5. Start the application:**
+### Start the application
 ```bash
 uv run python main.py
 ```
@@ -239,14 +220,14 @@ uv run python main.py
 # 2. Filter to only track story titles
 /editfilter 1 css:span.titleline>a html2text
 
-# 3. Schedule to check every 10 minutes
-/crontab_add 1 10
+# 3. Schedule to check every 3 hours (180 minutes)
+/crontab_add 1 180
 
 # 4. View scheduled jobs
 /crontab_view
 ```
 
-You'll now receive Telegram notifications every 10 minutes when Hacker News front page changes!
+You'll now receive Telegram notifications every 3 hours when Hacker News front page changes!
 
 ---
 
@@ -317,6 +298,22 @@ docker volume inspect docker_urlwatch-data
 
 # Remove volumes (⚠️ deletes all data)
 docker compose -f docker/docker-compose.yml down -v
+```
+
+### Health Monitoring
+
+**Check container health:**
+```bash
+# Manual check
+docker inspect cronwatchbot --format='{{.State.Health.Status}}'
+
+# Continuous monitoring
+watch -n 30 'docker inspect cronwatchbot --format="{{.State.Health.Status}}"'
+```
+
+**Monitor resource usage:**
+```bash
+docker stats cronwatchbot
 ```
 
 ## Troubleshooting
@@ -437,13 +434,26 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 - `/home/cronwatchbot/.config/urlwatch` - URLWatch config and cache (owned by cronwatchbot)
 - `/var/spool/cron/crontabs` - Crontab files (owned by root, individual files by users)
 - `/app` - Application code (owned by cronwatchbot)
+- `/usr/local/bin/urlwatch` - Symlink to `/app/.venv/bin/urlwatch` for clean cron commands
+
+**Crontab Persistence:**
+- **Startup Reload**: Bot automatically reloads existing crontab entries on startup
+- **CronTab(user=True)**: Uses `crontab` command internally to signal crond after changes
+- **Volume Persistence**: Crontab data persists across container restarts via Docker volumes
 
 **Project Structure:**
 - **config/** - Configuration and logging setup
 - **handlers/** - Telegram command handlers (`/start`, `/help`, `/add`, `/crontab_*`, etc.)
 - **helpers/** - Core business logic (crontab operations, URLWatch file management)
 - **docker/** - Docker configuration (Dockerfile, docker-compose.yml, entrypoint.sh)
-- **main.py** - Bot entry point and command registration
+- **scripts/** - Utility scripts (backup, restore, init-volumes)
+- **main.py** - Bot entry point, command registration, and crontab reload on startup
+
+**Code Quality:**
+- **PEP 8 Imports**: Organized by standard library, third-party, and local modules
+- **Type Hints**: Full type annotations for better IDE support and error detection
+- **No Unused Imports**: All imports are actively used in the codebase
+- **Minimal Dependencies**: Only essential packages included
 
 ---
 
@@ -455,11 +465,34 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 - **Token Security**: Bot token stored in environment variables, never in code
 
 ### Container Security
+
+**Process Isolation:**
 - **Non-root User**: Bot process runs as `cronwatchbot` (UID 1000)
 - **Minimal Base**: Alpine Linux reduces attack surface
 - **SUID Binary**: Only `crontab` binary has SUID for user cron management
-- **File Permissions**: Config files restricted to 600 (owner read/write only)
-- **Resource Limits**: CPU and memory limits enforced
+
+**Filesystem Security:**
+- **Read-only Filesystem**: Application code mounted read-only
+- **Tmpfs Mounts**: `/tmp` mounted with `noexec,nosuid` flags
+- **File Permissions**: Config files restricted to 600, Python files to 644
+- **Write Access**: Only `/home/cronwatchbot/.config/urlwatch` and `/var/spool/cron` writable
+
+**Capability Management:**
+- **Capability Dropping**: All capabilities dropped, only 5 essential ones added
+- **Minimal Permissions**: SETUID, SETGID, CHOWN, FOWNER, DAC_OVERRIDE
+- **Purpose**: Each capability serves specific security/operational needs
+- **DAC_OVERRIDE**: Required for crontab command permission bypass
+
+**Resource Limits:**
+- **CPU**: 0.5 cores max, 0.1 cores reserved
+- **Memory**: 256MB max, 64MB reserved
+- **Adjustable**: Configure in `docker-compose.yml` as needed
+
+**Automated Security:**
+- **Daily Scanning**: Trivy scans for vulnerabilities every day at 02:00 UTC
+- **GitHub Security**: SARIF results uploaded to Security tab
+- **Fail on Critical**: Build fails on CRITICAL/HIGH fixable vulnerabilities
+- **Manual Triggers**: Can run scans on-demand via GitHub Actions
 
 ### Input Validation
 - **Command Injection Protection**: All job indices and parameters validated
@@ -471,6 +504,8 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 - ✅ Never commit `.env` file (automatically gitignored)
 - ✅ Limit `ALLOWED_USER_IDS` to trusted users only
 - ✅ Monitor container logs for suspicious activity
+- ✅ Use simplified configuration for easier maintenance
+- ✅ Verify security hardening with provided commands
 
 ---
 

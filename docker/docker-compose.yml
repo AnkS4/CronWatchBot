@@ -11,10 +11,21 @@ services:
       - ../.env
     
     volumes:
-      # Persist URLWatch configuration and cache
-      - urlwatch-data:/home/cronwatchbot/.config/urlwatch
-      # Persist crontab entries
-      - crontab-data:/var/spool/cron/crontabs
+      - urlwatch-data:/home/cronwatchbot/.config/urlwatch  # URLWatch config & cache
+      - crontab-data:/var/spool/cron  # Crontab directory for python-crontab
+    
+    # Security hardening
+    read_only: true  # Root filesystem read-only
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m  # Secure temp directory
+    cap_drop:
+      - ALL  # Drop all capabilities
+    cap_add:
+      - SETUID  # su-exec user switching
+      - SETGID  # su-exec group switching  
+      - CHOWN   # File ownership operations
+      - FOWNER  # File ownership bypass
+      - DAC_OVERRIDE  # crontab permission bypass
     
     healthcheck:
       test: ["CMD", "sh", "-c", "pgrep -f 'python.*main.py' && pgrep crond"]

@@ -53,9 +53,16 @@ WORKDIR /app
 COPY --from=builder --chown=cronwatchbot:cronwatchbot /app /app
 COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
 
+# Security: Tighten file permissions
+RUN chmod 755 /app && \
+    find /app -type f -name "*.py" -exec chmod 644 {} \; && \
+    chmod 755 /app/main.py && \
+    chmod -R 755 /app/.venv/bin && \
+    ln -sf /app/.venv/bin/urlwatch /usr/local/bin/urlwatch
+
 # Verify both the bot process and the cron daemon are alive.
 # pgrep exits 1 on no match — no "|| exit 1" needed.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=10s --start-period=15s --retries=3 \
     CMD pgrep -f "python.*main.py" && pgrep crond
 
 ENTRYPOINT ["/entrypoint.sh"]

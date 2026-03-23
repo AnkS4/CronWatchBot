@@ -7,10 +7,9 @@ set -e
 
 URLWATCH_DIR="/home/cronwatchbot/.config/urlwatch"
 
-# Ensure config directory exists (safety net for volume-mount scenarios where
-# the build-time directory may be shadowed)
+# Setup URLWatch directory and files
 su-exec cronwatchbot mkdir -p "$URLWATCH_DIR"
-[ -f "$URLWATCH_DIR/urls.yaml" ] || su-exec cronwatchbot touch "$URLWATCH_DIR/urls.yaml"
+su-exec cronwatchbot touch "$URLWATCH_DIR/urls.yaml"
 
 if [ ! -f "$URLWATCH_DIR/urlwatch.yaml" ]; then
     # tee opens the *output* file as cronwatchbot (correct ownership from birth).
@@ -32,45 +31,34 @@ EOF
     su-exec cronwatchbot chmod 600 "$URLWATCH_DIR/urlwatch.yaml"
 fi
 
-# Ensure cronwatchbot user can write to crontab directory
-# python-crontab needs write access to /var/spool/cron/crontabs/
-# Create the file if it doesn't exist
+# Setup crontab directory and permissions
+mkdir -p /var/spool/cron/crontabs
+chown root:cronwatchbot /var/spool/cron/crontabs
+chmod 775 /var/spool/cron/crontabs
 touch /var/spool/cron/crontabs/cronwatchbot
 chown cronwatchbot:cronwatchbot /var/spool/cron/crontabs/cronwatchbot
 chmod 600 /var/spool/cron/crontabs/cronwatchbot
 
-# Ensure URLWatch cache file has correct ownership
+# Fix cache file ownership if exists
 [ -f "$URLWATCH_DIR/cache.db" ] && chown cronwatchbot:cronwatchbot "$URLWATCH_DIR/cache.db"
 
-# Create symlink for urlwatch in system PATH for clean cron commands
-ln -sf /app/.venv/bin/urlwatch /usr/local/bin/urlwatch
-
-# -f keeps crond in the foreground so & captures its real PID for clean teardown.
-# (Without -f BusyBox crond self-daemonises and $! would be the wrong PID.)
-# Root is required: BusyBox crond reads /var/spool/cron/crontabs/<user>.
+# Start cron daemon (root required for BusyBox crond)
 crond -f &
 CROND_PID=$!
 
-# Tear down both processes cleanly on SIGTERM / SIGINT
+# Process management
 cleanup() {
-    kill "$BOT_PID"   2>/dev/null
-    kill "$CROND_PID" 2>/dev/null
-    wait              2>/dev/null
-    exit 0
+    kill "$BOT_PID" "$CROND_PID" 2>/dev/null
+    wait 2>/dev/null; exit 0
 }
 trap cleanup TERM INT
 
-# Background the bot so the trap above stays reachable.
-# (exec would replace this shell, making the trap unreachable and leaking crond.)
+# Start bot and cron
 su-exec cronwatchbot python main.py &
 BOT_PID=$!
 
-# Capture the bot's exit code without triggering set -e on a non-zero return.
-# If set -e fires on wait, a bot crash would skip cleanup and leak crond.
+# Wait for bot and propagate exit code
 wait "$BOT_PID" && BOT_EXIT=0 || BOT_EXIT=$?
-
-# Bot exited on its own (crash or clean shutdown): tear down crond and surface
-# the exit code so container restart policies work correctly.
 kill "$CROND_PID" 2>/dev/null
 wait "$CROND_PID" 2>/dev/null || true
 exit "$BOT_EXIT"
