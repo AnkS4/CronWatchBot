@@ -327,9 +327,9 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE):
             yaml.safe_dump(temp_entry, f, sort_keys=False)
             temp_file = f.name
 
-        # Run urlwatch on this single entry
+        # Run urlwatch with --test-filter to show current status only (no diffs)
         result = subprocess.run(
-            ['urlwatch', '--urls', temp_file, '--verbose'],
+            ['urlwatch', '--test-filter', '1', '--urls', temp_file],
             capture_output=True,
             text=True,
             timeout=30
