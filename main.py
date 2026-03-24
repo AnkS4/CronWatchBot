@@ -30,6 +30,7 @@ async def post_init(application) -> None:
         BotCommand("delete", "Delete a URL"),
         BotCommand("editfilter", "Edit filters for a URL"),
         BotCommand("editprop", "Edit properties for a URL"),
+        BotCommand("check", "Check current output of a URL"),
         BotCommand("crontab_view", "View all scheduled cron jobs"),
         BotCommand("crontab_add", "Add a new cron job"),
         BotCommand("crontab_edit", "Edit an existing cron job"),
@@ -42,7 +43,7 @@ def main() -> None:
     """Initialize and run the CronWatchBot."""
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     install_telegram_http_filter()
-    
+
     command_handlers: Dict[str, Callable] = {
         "start": basic.start,
         "help": basic.help_command,
@@ -52,15 +53,16 @@ def main() -> None:
         "delete": urlwatch_manage.delete_url,
         "editfilter": urlwatch_manage.edit_url_filters,
         "editprop": urlwatch_manage.edit_url_properties,
+        "check": urlwatch_manage.check_url_output,
         "crontab_view": crontab_manage.crontab_view,
         "crontab_add": crontab_manage.crontab_add,
         "crontab_edit": crontab_manage.crontab_edit,
         "crontab_delete": crontab_manage.crontab_delete,
     }
-    
+
     for cmd, handler in command_handlers.items():
         app.add_handler(CommandHandler(cmd, handler))
-    
+
     app.add_handler(MessageHandler(filters.TEXT, basic.unknown))
     logger.info("CronWatchBot is running...")
     app.run_polling()

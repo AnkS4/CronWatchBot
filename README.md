@@ -24,7 +24,7 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
               border: 3px solid #0088cc;">
 </div>
 
-*Key features demonstrated: URL monitoring with `/add`, content filtering with `/editfilter`, automated scheduling with `/crontab_add`, job management with `/crontab_view`, and change notifications*
+*Key features demonstrated: URL monitoring with `/add`, content filtering with `/editfilter`, automated scheduling with `/crontab_add`, job management with `/crontab_view`, and received notification*
 
 ---
 
@@ -431,7 +431,7 @@ Should return `healthy`. If `unhealthy`, check logs for errors.
 
 ### Container Architecture
 
-**Base Image:** `python:3.14.2-alpine3.23`
+**Base Image:** `python:3.14-alpine3.23`
 - Minimal Alpine Linux with BusyBox utilities
 - Multi-stage build for smaller image size
 - `uv` for fast Python dependency installation

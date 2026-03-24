@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Build stage ───────────────────────────────────────────────────────────────
-FROM ghcr.io/astral-sh/uv:0.10.12-python3.14-alpine3.23 AS builder
+FROM ghcr.io/astral-sh/uv:0.11-python3.14-alpine3.23 AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 # Install dependencies first (changes less often than source code)
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project
+    uv sync --frozen --no-install-project --no-dev
 
 # Install project (layer invalidated only when source changes)
 COPY config/ ./config/
@@ -20,21 +20,29 @@ COPY handlers/ ./handlers/
 COPY helpers/ ./helpers/
 COPY main.py ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen
+    uv sync --frozen --no-dev
 
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM python:3.14.2-alpine3.23 AS runtime
+FROM python:3.14-alpine3.23 AS runtime
 
 LABEL org.opencontainers.image.title="cronwatchbot" \
       org.opencontainers.image.description="Telegram bot for managing urlwatch and crontab" \
       org.opencontainers.image.source="https://github.com/AnkS4/CronWatchBot" \
       org.opencontainers.image.licenses="MIT"
 
+# PYTHONPYCACHEPREFIX: the builder already compiled .pyc files via UV_COMPILE_BYTECODE;
+# this redirects any new writes (e.g. from third-party code at runtime) out of /app.
+# PYTHONDONTWRITEBYTECODE is intentionally absent — suppressing .pyc conflicts with the
+# pre-compiled bytecode copied from the builder stage.
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPYCACHEPREFIX=/tmp/.pycache \
     PATH="/app/.venv/bin:$PATH"
 
+# Note: this stage runs as root so the entrypoint can start crond (which requires root
+# for system crontab management). The entrypoint is responsible for dropping to the
+# cronwatchbot user via su-exec before exec-ing the bot process. USER is not set here
+# because setting it would prevent the entrypoint from starting crond at all.
 RUN apk --no-cache upgrade && \
     apk add --no-cache su-exec busybox-suid \
     && python -m pip uninstall -y pip \

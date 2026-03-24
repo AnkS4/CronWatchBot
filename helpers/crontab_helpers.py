@@ -9,7 +9,7 @@ CRONWATCH_COMMENT_PREFIX = 'cronwatch-bot-'
 
 def get_cron() -> CronTab:
     """Get crontab instance using user mode.
-    
+
     Uses the crontab command internally for both reading and writing,
     which automatically notifies BusyBox crond to reload.
     """
@@ -28,7 +28,7 @@ def list_urlwatch_jobs() -> List:
 
 def build_urlwatch_command(job_index: int) -> str:
     """Build urlwatch command for specific job index.
-    
+
     Uses simple command since urlwatch is symlinked to /usr/local/bin
     which is in the default cron PATH.
     """
@@ -53,27 +53,28 @@ def update_crontab_indices_after_deletion(deleted_index: int) -> List[int]:
     cron = get_cron()
     jobs = list_urlwatch_jobs()
     updated_indices = []
-    
+
     for job in jobs:
         job_index = get_job_index_from_comment(job.comment)
         if job_index == -1:
             continue
-            
+
         # If job points to deleted entry, remove it
         if job_index == deleted_index:
             cron.remove(job)
             continue
-        
+
         # If job points to entry after deleted one, decrement index
         if job_index > deleted_index:
             new_index = job_index - 1
             job.set_command(build_urlwatch_command(new_index))
             job.set_comment(f"{CRONWATCH_COMMENT_PREFIX}{new_index}")
             updated_indices.append(new_index)
-    
+
     try:
         cron.write()
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to write crontab during index update: %s", e)
         return []
-    
+
     return updated_indices

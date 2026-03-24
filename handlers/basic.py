@@ -113,15 +113,15 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle unknown commands and non-command text messages."""
     if not update.message or not update.message.text:
         return
-    
+
     message_text = update.message.text.strip()
     is_command = message_text.startswith("/")
-    
-    logger.info("%s received from %s: %s", 
+
+    logger.info("%s received from %s: %s",
                 "Unknown command" if is_command else "Non-command message",
-                update.effective_user.id, 
+                update.effective_user.id,
                 message_text)
-    
+
     if is_command:
         await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")
     else:

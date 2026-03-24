@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List
 
 def _parse_allowed_user_ids(ids_str: str) -> List[int]:
     """Parse comma-separated user IDs from environment variable."""

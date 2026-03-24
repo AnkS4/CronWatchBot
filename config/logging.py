@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 class TelegramHttpxFilter(logging.Filter):
     """Filter to simplify Telegram HTTP request logs."""
-    
+
     _pattern = re.compile(r'POST https://api\.telegram\.org/bot[^/]+(/[^ ]+) "HTTP/1\.1 (\d{3})')
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
         if 'HTTP Request:' in msg and 'api.telegram.org' in msg:
@@ -27,6 +27,6 @@ def install_telegram_http_filter() -> None:
     """Install filter on specific loggers that generate HTTP logs."""
     tg_filter = TelegramHttpxFilter()
     target_loggers: List[str] = ['httpx', 'telegram.ext', 'telegram']
-    
+
     for logger_name in target_loggers:
         logging.getLogger(logger_name).addFilter(tg_filter)

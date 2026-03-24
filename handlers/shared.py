@@ -35,13 +35,13 @@ def auth_and_error_handler(func: Callable) -> Callable:
             logger.warning("Unauthorized access attempt by %s", user_id)
             await send_error(update, 'unauthorized')
             return
-        
+
         try:
             return await func(update, context)
         except Exception as e:
             logger.exception("Error in %s: %s", func.__name__, e)
             await send_error(update, 'generic_error')
-    
+
     return wrapper
 
 def validate_args(expected_count: int, usage_msg: str) -> Callable:

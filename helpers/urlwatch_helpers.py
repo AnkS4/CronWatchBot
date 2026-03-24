@@ -16,13 +16,13 @@ def load_urls() -> List[Dict[str, Any]]:
     if not os.path.exists(URLS_FILE):
         logger.warning("URLs file not found at %s", URLS_FILE)
         return []
-    
+
     try:
         file_size = os.path.getsize(URLS_FILE)
         if file_size > MAX_FILE_SIZE:
             logger.error("URLs file exceeds maximum size: %d bytes", file_size)
             return []
-        
+
         with open(URLS_FILE, "r", encoding="utf-8") as f:
             data = yaml.safe_load_all(f)
             return [entry for entry in (data or []) if entry]
@@ -54,7 +54,39 @@ def validate_url(url: str) -> bool:
 
 def get_display_name(entry: Dict[str, Any]) -> str:
     """Get display name for URL entry."""
-    return entry.get('name', entry.get('url', 'Unnamed entry'))
+    return entry.get('name', entry.get('url', 'Unknown'))
+
+def find_url_by_name(urls: List[Dict[str, Any]], name_or_index: str) -> Optional[int]:
+    """Find URL index by name or index number."""
+    # Try to find by index first
+    try:
+        idx = int(name_or_index) - 1
+        if 0 <= idx < len(urls):
+            return idx
+    except ValueError:
+        pass
+
+    # Try to find by name
+    for i, entry in enumerate(urls):
+        if entry.get('name', '').lower() == name_or_index.lower():
+            return i
+
+    return None
+
+def format_url_summary(entry: Dict[str, Any], index: int) -> str:
+    """Format a summary of URL entry for display."""
+    name = get_display_name(entry)
+    url = entry.get('url', '')
+    summary = f"📌 *{name}*\n   🔗 `{url}`"
+
+    if filters := entry.get('filter'):
+        filters_str = ', '.join(str(f) for f in filters) if isinstance(filters, list) else str(filters)
+        summary += f"\n   🔎 `{filters_str}`"
+
+    if props := [f"{k}: {v}" for k, v in entry.items() if k not in ('name', 'url', 'filter')]:
+        summary += f"\n   ⚙️ `{'; '.join(props)}`"
+
+    return summary
 
 def validate_index(idx_str: str, urls: List[Dict[str, Any]]) -> Optional[int]:
     """Validate and convert index string to integer."""
