@@ -15,7 +15,24 @@ from helpers.urlwatch_helpers import load_urls
 from .shared import auth_and_error_handler, send_error, validate_args
 
 def create_schedule_from_minutes(minutes: int) -> Tuple[Optional[str], Optional[str]]:
-    """Create cron schedule and human description from minutes."""
+    """Create cron schedule expression and human-readable description from minutes.
+    
+    Converts a minute interval into a cron schedule expression and a human-friendly
+    description. Supports intervals less than 60 minutes, hourly intervals, and
+    daily intervals.
+    
+    Args:
+        minutes: Interval in minutes for the cron job.
+    
+    Returns:
+        Tuple of (cron_schedule, human_description) or (None, None) if invalid.
+    
+    Examples:
+        >>> create_schedule_from_minutes(15)
+        ('*/15 * * * *', 'every 15 minutes')
+        >>> create_schedule_from_minutes(120)
+        ('0 */2 * * *', 'every 2 hour(s)')
+    """
     if minutes < 60:
         return f"*/{minutes} * * * *", f"every {minutes} minutes"
     if minutes % 1440 == 0:
@@ -27,7 +44,15 @@ def create_schedule_from_minutes(minutes: int) -> Tuple[Optional[str], Optional[
     return None, None
 
 async def validate_job_index_and_minutes(update: Update, args: list) -> Tuple[Optional[int], Optional[int]]:
-    """Validate job index and minutes arguments."""
+    """Validate and parse job index and minutes from command arguments.
+    
+    Args:
+        update: Telegram update object for sending error messages.
+        args: List of command arguments.
+    
+    Returns:
+        Tuple of (job_index, minutes) or (None, None) if validation fails.
+    """
     try:
         job_index = int(args[0])
         minutes = int(args[1])
@@ -39,8 +64,16 @@ async def validate_job_index_and_minutes(update: Update, args: list) -> Tuple[Op
         return None, None
 
 @auth_and_error_handler
-async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """View scheduled jobs."""
+async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display all scheduled cron jobs managed by CronWatchBot.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context for the command.
+    
+    Returns:
+        None
+    """
     logger.info("CrontabView command requested by %s", update.effective_user.id)
     jobs = list_urlwatch_jobs()
     if not jobs:
@@ -57,8 +90,19 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(2, "❌ Usage: `/crontab_add <job_index> <minutes>`\n📝 Example: `/crontab_add 2 15`")
-async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Add scheduled job."""
+async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add a new scheduled cron job for a URL entry.
+    
+    Creates a cron job that will run urlwatch for the specified URL entry
+    at the given interval.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [job_index, minutes].
+    
+    Returns:
+        None
+    """
     logger.info("CrontabAdd command requested by %s", update.effective_user.id)
     job_index, minutes = await validate_job_index_and_minutes(update, context.args)
     if job_index is None:
@@ -113,8 +157,16 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(2, "❌ Usage: `/crontab_edit <index> <minutes>`\n📝 Example: `/crontab_edit 1 30`")
-async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Edit scheduled job."""
+async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Edit the schedule of an existing cron job.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [job_index, minutes].
+    
+    Returns:
+        None
+    """
     logger.info("CrontabEdit command requested by %s", update.effective_user.id)
     job_index, minutes = await validate_job_index_and_minutes(update, context.args)
     if job_index is None:
@@ -166,8 +218,16 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(1, "❌ Usage: `/crontab_delete <index>`")
-async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Delete scheduled job."""
+async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete a scheduled cron job.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [job_index].
+    
+    Returns:
+        None
+    """
     logger.info("CrontabDelete command requested by %s", update.effective_user.id)
     try:
         idx = int(context.args[0]) - 1

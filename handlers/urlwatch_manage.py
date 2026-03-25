@@ -24,7 +24,25 @@ from helpers.urlwatch_helpers import (
 from .shared import auth_and_error_handler, send_error, validate_args
 
 def _auto_convert_type(value: str) -> Union[bool, int, float, str]:
-    """Auto-convert string value to appropriate type."""
+    """Auto-convert string value to appropriate type.
+    
+    Attempts to convert string values to bool, int, or float if possible.
+    Returns the original string if no conversion is applicable.
+    
+    Args:
+        value: String value to convert.
+    
+    Returns:
+        Converted value as bool, int, float, or original string.
+    
+    Examples:
+        >>> _auto_convert_type('true')
+        True
+        >>> _auto_convert_type('42')
+        42
+        >>> _auto_convert_type('3.14')
+        3.14
+    """
     if value.lower() in ('true', 'false'):
         return value.lower() == 'true'
     if value.isdigit():
@@ -34,7 +52,14 @@ def _auto_convert_type(value: str) -> Union[bool, int, float, str]:
     return value
 
 async def check_urls_exist(update: Update) -> Optional[List[Dict[str, Any]]]:
-    """Check if URLs exist and send error if not."""
+    """Check if URLs exist and send error message if not.
+    
+    Args:
+        update: Telegram update object for sending error messages.
+    
+    Returns:
+        List of URL entries if they exist, None otherwise.
+    """
     urls = load_urls()
     if not urls:
         await send_error(update, 'no_urls')
@@ -42,7 +67,16 @@ async def check_urls_exist(update: Update) -> Optional[List[Dict[str, Any]]]:
     return urls
 
 async def validate_and_get_index(update: Update, idx_str: str, urls: List[Dict[str, Any]]) -> Optional[int]:
-    """Validate index and send error if invalid."""
+    """Validate index string and send error message if invalid.
+    
+    Args:
+        update: Telegram update object for sending error messages.
+        idx_str: Index string to validate.
+        urls: List of URL entries to validate against.
+    
+    Returns:
+        Zero-based index if valid, None otherwise.
+    """
     idx = validate_index(idx_str, urls)
     if idx is None:
         await send_error(update, 'invalid_index', len(urls))
@@ -50,8 +84,16 @@ async def validate_and_get_index(update: Update, idx_str: str, urls: List[Dict[s
     return idx
 
 @auth_and_error_handler
-async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Display all URLs."""
+async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Display all monitored URLs with their filters and properties.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context for the command.
+    
+    Returns:
+        None
+    """
     logger.info("View command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:
@@ -74,8 +116,16 @@ async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(1, "❌ Usage: `/add <url> [name]`\n📝 Example: `/add https://github.com/user/repo My Repo`")
-async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Add new URL."""
+async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Add a new URL to monitor.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [url, optional_name...].
+    
+    Returns:
+        None
+    """
     logger.info("Add command requested by %s", update.effective_user.id)
     new_url = context.args[0]
     if not new_url.startswith(('http://', 'https://')):
@@ -107,8 +157,16 @@ async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(2, "❌ Usage: `/edit <index> <url> [name]`")
-async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Edit URL entry."""
+async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Edit an existing URL entry.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [index, url, optional_name...].
+    
+    Returns:
+        None
+    """
     logger.info("Edit command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:
@@ -146,8 +204,16 @@ async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • `/editfilter 1 html2text strip`
 • `/editfilter 1 xpath://*[@id="price"] html2text`
 • `/editfilter 1 css.selector:span.titleline > a html2text` - Nested filters""")
-async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Edit filters."""
+async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Edit or remove filters for a URL entry.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [index, optional_filters...].
+    
+    Returns:
+        None
+    """
     logger.info("EditFilter command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:
@@ -199,8 +265,16 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • `/editprop 1` - Show properties
 • `/editprop 1 timeout:30`
 • `/editprop 1 user_agent:MyBot headers.Accept:text/html`""")
-async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Edit properties."""
+async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Edit or view properties for a URL entry.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [index, optional_properties...].
+    
+    Returns:
+        None
+    """
     logger.info("EditProperty command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:
@@ -258,8 +332,16 @@ async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 @auth_and_error_handler
 @validate_args(1, "❌ Usage: `/delete <index>`")
-async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Delete URL entry."""
+async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Delete a URL entry and update associated cron jobs.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [index].
+    
+    Returns:
+        None
+    """
     logger.info("Delete command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:
@@ -298,8 +380,16 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_and_error_handler
 @validate_args(1, "❌ Usage: `/check <index>`\n📝 Example: `/check 1`")
-async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check current output of a URL with its filters."""
+async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Check and display current output of a URL with its filters applied.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context containing command arguments [index].
+    
+    Returns:
+        None
+    """
     logger.info("Check command requested by %s", update.effective_user.id)
     urls = await check_urls_exist(update)
     if urls is None:

@@ -5,8 +5,16 @@ from config.logging import logger
 from .shared import auth_and_error_handler
 
 @auth_and_error_handler
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Send help message."""
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send comprehensive help message with all available commands.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context for the command.
+    
+    Returns:
+        None
+    """
     logger.info("Help command requested by %s", update.effective_user.id)
     if update.message:
         await update.message.reply_text(
@@ -80,8 +88,16 @@ If you get stuck, just try `/help` again or use `/start` for a simple introducti
         )
 
 @auth_and_error_handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcome message."""
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send welcome message with quick start guide.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context for the command.
+    
+    Returns:
+        None
+    """
     logger.info("Start command requested by %s", update.effective_user.id)
     if update.message:
         await update.message.reply_text(
@@ -109,8 +125,19 @@ Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>
     )
 
 @auth_and_error_handler
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle unknown commands and non-command text messages."""
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle unknown commands and non-command text messages.
+    
+    Distinguishes between unknown commands (starting with /) and regular text messages,
+    providing appropriate feedback for each case.
+    
+    Args:
+        update: Telegram update object containing the message.
+        context: Telegram context for the command.
+    
+    Returns:
+        None
+    """
     if not update.message or not update.message.text:
         return
 

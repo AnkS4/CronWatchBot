@@ -19,14 +19,34 @@ ERROR_MESSAGES = {
 }
 
 async def send_error(update: Update, error_key: str, *args: Any) -> None:
-    """Send standardized error messages."""
+    """Send standardized error messages to the user.
+    
+    Args:
+        update: Telegram update object containing the message.
+        error_key: Key to lookup error message in ERROR_MESSAGES dict.
+        *args: Optional format arguments for the error message.
+    
+    Returns:
+        None
+    """
     if not update.message:
         return
     message = ERROR_MESSAGES[error_key].format(*args) if args else ERROR_MESSAGES[error_key]
     await update.message.reply_text(message)
 
 def auth_and_error_handler(func: Callable) -> Callable:
-    """Combined auth and error handling decorator."""
+    """Combined authentication and error handling decorator.
+    
+    Checks if the user is authorized (in ALLOWED_USER_IDS) before executing
+    the command handler. Also wraps the handler in a try-except block to
+    catch and log any exceptions.
+    
+    Args:
+        func: The async command handler function to wrap.
+    
+    Returns:
+        Wrapped function with auth and error handling.
+    """
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
         user_id = update.effective_user.id
@@ -45,7 +65,18 @@ def auth_and_error_handler(func: Callable) -> Callable:
     return wrapper
 
 def validate_args(expected_count: int, usage_msg: str) -> Callable:
-    """Decorator for argument validation."""
+    """Decorator for validating command argument count.
+    
+    Checks if the command has at least the expected number of arguments.
+    If not, sends the usage message to the user.
+    
+    Args:
+        expected_count: Minimum number of arguments required.
+        usage_msg: Usage message to display if validation fails.
+    
+    Returns:
+        Decorator function that wraps the command handler.
+    """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Any:
