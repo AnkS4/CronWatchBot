@@ -1,24 +1,30 @@
-from telegram import Update
-from telegram.ext import ContextTypes
+from typing import TYPE_CHECKING
 
 from config.logging import logger
+
 from .shared import auth_and_error_handler
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
+
 
 @auth_and_error_handler
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send comprehensive help message with all available commands.
-    
+
     Args:
         update: Telegram update object containing the message.
         context: Telegram context for the command.
-    
+
     Returns:
         None
     """
-    logger.info("Help command requested by %s", update.effective_user.id)
+    if update.effective_user:
+        logger.info("Help command requested by %s", update.effective_user.id)
     if update.message:
         await update.message.reply_text(
-        """
+            """
 📚 *CronWatchBot — Help & Command Guide*
 
 *👋 Getting Started:*
@@ -84,24 +90,26 @@ Step 3. Schedule automatic checks:
 
 If you get stuck, just try `/help` again or use `/start` for a simple introduction!
         """,
-        parse_mode='Markdown'
+            parse_mode="Markdown",
         )
+
 
 @auth_and_error_handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send welcome message with quick start guide.
-    
+
     Args:
         update: Telegram update object containing the message.
         context: Telegram context for the command.
-    
+
     Returns:
         None
     """
-    logger.info("Start command requested by %s", update.effective_user.id)
+    if update.effective_user:
+        logger.info("Start command requested by %s", update.effective_user.id)
     if update.message:
         await update.message.reply_text(
-        """
+            """
 🤖 *Welcome to CronWatchBot!*
 
 *🚀 Getting Started:*
@@ -121,20 +129,21 @@ Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>
 
 💡 _Tip: Use_ `/help` _to see detailed usage help._
         """,
-        parse_mode='Markdown'
-    )
+            parse_mode="Markdown",
+        )
+
 
 @auth_and_error_handler
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown commands and non-command text messages.
-    
+
     Distinguishes between unknown commands (starting with /) and regular text messages,
     providing appropriate feedback for each case.
-    
+
     Args:
         update: Telegram update object containing the message.
         context: Telegram context for the command.
-    
+
     Returns:
         None
     """
@@ -144,10 +153,13 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message_text = update.message.text.strip()
     is_command = message_text.startswith("/")
 
-    logger.info("%s received from %s: %s",
-                "Unknown command" if is_command else "Non-command message",
-                update.effective_user.id,
-                message_text)
+    if update.effective_user:
+        logger.info(
+            "%s received from %s: %s",
+            "Unknown command" if is_command else "Non-command message",
+            update.effective_user.id,
+            message_text,
+        )
 
     if is_command:
         await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")

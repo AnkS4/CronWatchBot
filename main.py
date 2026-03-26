@@ -1,25 +1,37 @@
-from typing import Dict, Callable
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-from telegram import BotCommand
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram import BotCommand, Update
+from telegram.ext import (
+    Application,
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
 
 from config import TOKEN
 from config.logging import install_telegram_http_filter, logger
-from handlers import basic, urlwatch_manage, crontab_manage
+from handlers import basic, crontab_manage, urlwatch_manage
 
 load_dotenv()  # Load environment variables first
 
 # Reload existing crontab on startup to ensure crond picks up persisted jobs
 try:
     from helpers.crontab_helpers import get_cron
+
     cron = get_cron()
     cron.write()  # This signals crond to reload via crontab command
     logger.info("Reloaded existing crontab entries")
 except Exception as e:
     logger.warning("Failed to reload crontab on startup: %s", e)
 
-async def post_init(application) -> None:
+
+async def post_init(application: Application) -> None:  # type: ignore[type-arg]
     """Set bot commands after initialization."""
     commands = [
         BotCommand("start", "Get started with the bot"),
@@ -39,12 +51,15 @@ async def post_init(application) -> None:
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands set successfully")
 
+
 def main() -> None:
     """Initialize and run the CronWatchBot."""
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     install_telegram_http_filter()
 
-    command_handlers: Dict[str, Callable] = {
+    command_handlers: dict[
+        str, Callable[[Update, ContextTypes.DEFAULT_TYPE], Coroutine[Any, Any, None]]
+    ] = {
         "start": basic.start,
         "help": basic.help_command,
         "list": urlwatch_manage.view_urls,
@@ -66,6 +81,7 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.TEXT, basic.unknown))
     logger.info("CronWatchBot is running...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()

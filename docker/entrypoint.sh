@@ -40,10 +40,13 @@ chown cronwatchbot:cronwatchbot /var/spool/cron/crontabs/cronwatchbot
 chmod 600 /var/spool/cron/crontabs/cronwatchbot
 
 # Fix cache file ownership if exists
-[ -f "$URLWATCH_DIR/cache.db" ] && chown cronwatchbot:cronwatchbot "$URLWATCH_DIR/cache.db"
+if [ -f "$URLWATCH_DIR/cache.db" ]; then
+    chown cronwatchbot:cronwatchbot "$URLWATCH_DIR/cache.db"
+fi
 
 # Start cron daemon (root required for BusyBox crond)
-crond -f &
+# -f: foreground, -l 8: debug logging, -L: log to stdout for docker logs
+crond -f -l 8 -L /dev/stdout &
 CROND_PID=$!
 
 # Process management

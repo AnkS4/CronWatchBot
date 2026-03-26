@@ -1,5 +1,10 @@
 # CronWatchBot
 
+[![Tests](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml/badge.svg)](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Telegram bot for managing and monitoring URLWatch jobs with automated scheduling via cron. Monitor websites for changes and receive instant Telegram notifications - all controlled through simple chat commands.
 
 ## Features
@@ -14,15 +19,9 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 
 ### 🎬 Bot Demo
 
-<div align="center">
-  <img src="docs/assets/screenshot_1.png" 
-       alt="CronWatchBot Telegram Interface"
-       style="border-radius: 12px; 
-              box-shadow: 0 8px 30px rgba(0,136,204,0.4);
-              max-width: 100%;
-              max-height: 600px;
-              border: 3px solid #0088cc;">
-</div>
+<p align="center">
+  <img src="docs/assets/screenshot_1.png" alt="CronWatchBot Telegram Interface" width="600">
+</p>
 
 *Key features demonstrated: URL monitoring with `/add`, content filtering with `/editfilter`, automated scheduling with `/crontab_add`, job management with `/crontab_view`, and received notification*
 
@@ -535,6 +534,68 @@ Required variables in `.env`:
 | `ALLOWED_USER_IDS` | Comma-separated Telegram user IDs | `123456789,987654321` |
 
 **Get your user ID:** Send a message to [@userinfobot](https://t.me/userinfobot)
+
+---
+
+## Development
+
+### Setup
+
+```bash
+# Clone repository
+git clone https://github.com/AnkS4/CronWatchBot && cd CronWatchBot
+
+# Install dependencies (includes dev tools)
+uv sync
+
+# Configure environment
+cp .env.example .env
+nano .env  # Add your TELEGRAM_BOT_TOKEN and ALLOWED_USER_IDS
+```
+
+### Running Locally
+
+```bash
+# Start the bot
+uv run python main.py
+
+# Or with auto-reload during development (requires watchdog)
+# uv add --dev watchdog
+# uv run watchmedo auto-restart -d . -p '*.py' -- python main.py
+```
+
+### Testing
+
+```bash
+# Run all tests with coverage
+uv run pytest
+
+# Run specific test file (without coverage threshold)
+uv run pytest tests/unit/test_config.py --no-cov
+
+# Run with verbose output
+uv run pytest -v
+
+# Generate HTML coverage report
+uv run pytest --cov-report=html
+# Open htmlcov/index.html in browser
+```
+
+### Code Quality
+
+```bash
+# Lint (check for issues)
+uv run ruff check .
+
+# Format code
+uv run ruff format .
+
+# Type checking
+uv run mypy .
+
+# Run all checks (lint + format + type check)
+uv run ruff check . && uv run ruff format --check . && uv run mypy .
+```
 
 ---
 

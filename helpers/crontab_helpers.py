@@ -1,11 +1,12 @@
-from typing import List
+from typing import Any
 
 from crontab import CronTab
 
 from config.logging import logger
 
 # Configuration
-CRONWATCH_COMMENT_PREFIX = 'cronwatch-bot-'
+CRONWATCH_COMMENT_PREFIX = "cronwatch-bot-"
+
 
 def get_cron() -> CronTab:
     """Get crontab instance using user mode.
@@ -13,49 +14,51 @@ def get_cron() -> CronTab:
     Uses the crontab command internally for both reading and writing,
     which automatically notifies BusyBox crond to reload. Creates a new
     empty crontab if one doesn't exist.
-    
+
     Returns:
         CronTab: Crontab instance for the current user.
-    
+
     Raises:
         IOError: If crontab cannot be accessed (logged and handled).
         OSError: If crontab cannot be created (logged and handled).
     """
     try:
         return CronTab(user=True)
-    except (IOError, OSError) as e:
+    except OSError as e:
         logger.warning("Crontab doesn't exist, creating: %s", e)
-        cron = CronTab(user=True, tab='')
+        cron = CronTab(user=True, tab="")
         cron.write()
         return cron
 
-def list_urlwatch_jobs() -> List:
+
+def list_urlwatch_jobs() -> list[Any]:
     """List all urlwatch jobs managed by CronWatchBot.
-    
+
     Filters cron jobs to only include those with comments starting with
     the CRONWATCH_COMMENT_PREFIX.
-    
+
     Returns:
         List: List of CronItem objects for urlwatch jobs managed by this bot.
     """
     cron = get_cron()
     return [job for job in cron if job.comment and job.comment.startswith(CRONWATCH_COMMENT_PREFIX)]
 
+
 def build_urlwatch_command(job_index: int) -> str:
     """Build urlwatch command for specific job index.
 
     Uses simple command since urlwatch is symlinked to /usr/local/bin
     which is in the default cron PATH.
-    
+
     Args:
         job_index: 1-based index of the URL entry to monitor.
-    
+
     Returns:
         str: Command string to execute urlwatch for the specified job.
-    
+
     Raises:
         ValueError: If job_index is not a positive integer.
-    
+
     Examples:
         >>> build_urlwatch_command(1)
         'urlwatch 1'
@@ -66,47 +69,49 @@ def build_urlwatch_command(job_index: int) -> str:
         raise ValueError(f"Invalid job_index: must be a positive integer, got {job_index}")
     return f"urlwatch {job_index}"
 
+
 def get_job_index_from_comment(comment: str) -> int:
     """Extract job index from crontab comment.
-    
+
     Parses the comment string to extract the numeric job index that follows
     the CRONWATCH_COMMENT_PREFIX.
-    
+
     Args:
         comment: Comment string from a cron job.
-    
+
     Returns:
         int: Job index if valid comment, -1 otherwise.
-    
+
     Examples:
-        >>> get_job_index_from_comment('cronwatch-bot-1')
+        >>> get_job_index_from_comment("cronwatch-bot-1")
         1
-        >>> get_job_index_from_comment('cronwatch-bot-42')
+        >>> get_job_index_from_comment("cronwatch-bot-42")
         42
-        >>> get_job_index_from_comment('other-comment')
+        >>> get_job_index_from_comment("other-comment")
         -1
     """
     if comment and comment.startswith(CRONWATCH_COMMENT_PREFIX):
         try:
-            return int(comment[len(CRONWATCH_COMMENT_PREFIX):])
+            return int(comment[len(CRONWATCH_COMMENT_PREFIX) :])
         except ValueError:
             return -1
     return -1
 
-def update_crontab_indices_after_deletion(deleted_index: int) -> List[int]:
+
+def update_crontab_indices_after_deletion(deleted_index: int) -> list[int]:
     """Update crontab job indices after a URL entry is deleted.
-    
+
     When a URL entry is deleted, this function:
     1. Removes the cron job associated with the deleted entry
     2. Decrements indices for all jobs pointing to entries after the deleted one
     3. Updates both the command and comment for affected jobs
-    
+
     Args:
         deleted_index: 1-based index of the deleted URL entry.
-    
+
     Returns:
         List[int]: List of updated job indices (1-based). Empty list on error.
-    
+
     Examples:
         If URL #2 is deleted and jobs exist for URLs #1, #2, #3:
         - Job for URL #2 is removed

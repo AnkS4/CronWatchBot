@@ -68,7 +68,7 @@ RUN chmod 755 /app && \
     find /app -type f -name "*.py" -exec chmod 644 {} \; && \
     chmod 755 /app/main.py && \
     chmod -R 755 /app/.venv/bin && \
-    ln -sf /app/.venv/bin/urlwatch /usr/local/bin/urlwatch
+    ln -sf /app/.venv/bin/urlwatch /usr/bin/urlwatch
 
 # Verify both the bot process and the cron daemon are alive.
 # pgrep exits 1 on no match — no "|| exit 1" needed.
