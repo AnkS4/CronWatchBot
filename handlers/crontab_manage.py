@@ -53,19 +53,19 @@ def create_schedule_from_minutes(minutes: int) -> tuple[str | None, str | None]:
     if minutes < MINUTES_IN_HOUR:
         label = "minute" if minutes == 1 else "minutes"
         return f"*/{minutes} * * * *", f"every {minutes} {label}"
-    
+
     # Daily intervals (exact day multiples)
     if minutes % MINUTES_IN_DAY == 0:
         days = minutes // MINUTES_IN_DAY
         label = "day" if days == 1 else "days"
         return f"0 0 */{days} * *", f"every {days} {label}"
-    
+
     # Hourly intervals (exact hour multiples, any duration)
     if minutes % MINUTES_IN_HOUR == 0:
         hours = minutes // MINUTES_IN_HOUR
         label = "hour" if hours == 1 else "hours"
         return f"0 */{hours} * * *", f"every {hours} {label}"
-    
+
     return None, None
 
 
@@ -126,7 +126,10 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 @auth_and_error_handler
-@validate_args(2, "❌ Usage: <code>/crontab_add &lt;job_index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_add 2 15</code>")
+@validate_args(
+    2,
+    "❌ Usage: <code>/crontab_add &lt;job_index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_add 2 15</code>",
+)
 async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a new scheduled cron job for a URL entry.
 
@@ -153,8 +156,9 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     # Validate job_index for crontab safety (defense in depth)
-    assert isinstance(job_index, int) and job_index >= 1, f"Invalid job_index for crontab: {job_index}"
-    
+    assert isinstance(job_index, int), f"job_index must be int, got {type(job_index)}"
+    assert job_index >= 1, f"Invalid job_index for crontab: {job_index}"
+
     # Check if a cron job already exists for this URL index
     cron = get_cron()
     existing_jobs = [
@@ -169,7 +173,7 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"⚠️ A cron job already exists for URL #{job_index}.\n\n"
                 f"Use <code>/crontab_edit {job_index} &lt;minutes&gt;</code> to update the schedule,\n"
                 f"or <code>/crontab_delete {len(existing_jobs)}</code> to remove it first.",
-                parse_mode="HTML"
+                parse_mode="HTML",
             )
         return
 
@@ -182,13 +186,10 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
             )
         return
-    
+
     # At this point, schedule is not None, so human should also not be None
     assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
 
-    # Validate job_index for crontab safety (defense in depth)
-    assert isinstance(job_index, int) and job_index >= 1, f"Invalid job_index for crontab: {job_index}"
-    
     command = build_urlwatch_command(job_index)
     job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
     job.setall(schedule)
@@ -215,7 +216,10 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 @auth_and_error_handler
-@validate_args(2, "❌ Usage: <code>/crontab_edit &lt;index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_edit 1 30</code>")
+@validate_args(
+    2,
+    "❌ Usage: <code>/crontab_edit &lt;index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_edit 1 30</code>",
+)
 async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Edit the schedule of an existing cron job.
 
@@ -253,7 +257,7 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
             )
         return
-    
+
     # At this point, schedule is not None, so human should also not be None
     assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
 

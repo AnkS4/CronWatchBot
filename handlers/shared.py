@@ -1,6 +1,6 @@
-import time
 from collections import defaultdict
 from functools import wraps
+import time
 from typing import TYPE_CHECKING, Any
 
 from config import ALLOWED_USER_IDS

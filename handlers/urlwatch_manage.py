@@ -4,17 +4,17 @@ import asyncio
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from telegram import Update
-from telegram.ext import ContextTypes
 import yaml
+
+if TYPE_CHECKING:
+    from telegram import Update
+    from telegram.ext import ContextTypes
 
 from config.logging import logger
 from handlers.shared import auth_and_error_handler, send_error, validate_args
 from helpers.crontab_helpers import (
-    get_job_index_from_comment,
-    list_urlwatch_jobs,
     update_crontab_indices_after_deletion,
 )
 from helpers.urlwatch_helpers import (
@@ -25,7 +25,7 @@ from helpers.urlwatch_helpers import (
     validate_index,
     validate_url,
 )
-from utils import escape_html, format_bold, format_code, format_pre
+from utils import escape_html, format_code, format_pre
 
 MAX_OUTPUT_LENGTH = 3000
 MIN_ARGS = 2
@@ -67,7 +67,10 @@ async def _run_urlwatch_check(
         else:
             error_msg = stderr.decode().strip() if stderr else "No output returned"
             if update.message:
-                await update.message.reply_text(f"⚠️ {escape_html(error_msg)} for {escape_html(get_display_name(entry))}", parse_mode="HTML")
+                await update.message.reply_text(
+                    f"⚠️ {escape_html(error_msg)} for {escape_html(get_display_name(entry))}",
+                    parse_mode="HTML",
+                )
 
     except TimeoutError:
         process.kill()
@@ -76,7 +79,7 @@ async def _run_urlwatch_check(
         if update.message:
             await update.message.reply_text(
                 f"⏰ Timeout checking output for {escape_html(get_display_name(entry))}",
-                parse_mode="HTML"
+                parse_mode="HTML",
             )
 
 
@@ -148,7 +151,11 @@ def _parse_property_args(args: list[str]) -> dict[str, Any]:
 async def _show_current_properties(update: Update, entry: dict[str, Any], idx: int) -> None:
     """Display current properties for a URL entry."""
     property_keys = ["timeout", "user_agent", "headers", "cookies", "ignore_connection_errors"]
-    props_display = [f"• {format_code(key)}: {escape_html(str(entry[key]))}" for key in property_keys if key in entry]
+    props_display = [
+        f"• {format_code(key)}: {escape_html(str(entry[key]))}"
+        for key in property_keys
+        if key in entry
+    ]
 
     if props_display and update.message:
         await update.message.reply_text(
@@ -215,7 +222,9 @@ async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     msg = ["📋 <b>URLs:</b>\n"]
     for i, entry in enumerate(urls, 1):
         name = get_display_name(entry)
-        msg.append(f"<b>{i}. {escape_html(name)}</b>\n   🌐 {format_code(entry.get('url', 'No URL'))}")
+        msg.append(
+            f"<b>{i}. {escape_html(name)}</b>\n   🌐 {format_code(entry.get('url', 'No URL'))}"
+        )
 
         if filters := entry.get("filter"):
             filters_str = (
@@ -232,7 +241,8 @@ async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @auth_and_error_handler
 @validate_args(
-    1, "❌ Usage: <code>/add &lt;url&gt; [name]</code>\n📝 Example: <code>/add https://github.com/user/repo My Repo</code>"
+    1,
+    "❌ Usage: <code>/add &lt;url&gt; [name]</code>\n📝 Example: <code>/add https://github.com/user/repo My Repo</code>",
 )
 async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a new URL to monitor.
@@ -438,12 +448,12 @@ async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
         return
 
-    RESERVED_KEYS = {"url", "name", "filter"}
-    properties = {k: v for k, v in properties.items() if k not in RESERVED_KEYS}
+    reserved_keys = {"url", "name", "filter"}
+    properties = {k: v for k, v in properties.items() if k not in reserved_keys}
     if not properties:
         if update.message:
             await update.message.reply_text(
-                f"⚠️ No valid properties provided. Reserved keys ({', '.join(RESERVED_KEYS)}) "
+                f"⚠️ No valid properties provided. Reserved keys ({', '.join(reserved_keys)}) "
                 "cannot be set via /editprop."
             )
         return
@@ -543,7 +553,9 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     entry = urls[idx]
     if update.message:
-        await update.message.reply_text(f"🔍 Checking output for {escape_html(get_display_name(entry))}...")
+        await update.message.reply_text(
+            f"🔍 Checking output for {escape_html(get_display_name(entry))}..."
+        )
 
     temp_file = None
     try:
@@ -570,4 +582,6 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if temp_file:
             Path(temp_file).unlink(missing_ok=True)
         if update.message:
-            await update.message.reply_text(f"❌ Failed to check output: {escape_html(str(e))}", parse_mode="HTML")
+            await update.message.reply_text(
+                f"❌ Failed to check output: {escape_html(str(e))}", parse_mode="HTML"
+            )

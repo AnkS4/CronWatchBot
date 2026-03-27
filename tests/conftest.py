@@ -1,11 +1,11 @@
 """Pytest configuration and fixtures."""
 
-import pytest
 from pathlib import Path
 import tempfile
 from unittest.mock import AsyncMock, Mock
 
 from _pytest.monkeypatch import MonkeyPatch
+import pytest
 from telegram import Update, User
 from telegram.ext import ContextTypes
 

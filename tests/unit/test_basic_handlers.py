@@ -4,10 +4,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from telegram import Update, User
-from telegram.ext import ContextTypes
 
 from handlers.basic import help_command, start, unknown
-
 
 # Comprehensive tests for help_command
 

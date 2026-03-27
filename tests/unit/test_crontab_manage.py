@@ -1,10 +1,8 @@
 """Tests for crontab management handlers."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from telegram import Update, User
-from telegram.ext import ContextTypes
 
 from handlers.crontab_manage import (
     create_schedule_from_minutes,
@@ -15,7 +13,6 @@ from handlers.crontab_manage import (
     validate_job_index_and_minutes,
 )
 from helpers.crontab_helpers import CRONWATCH_COMMENT_PREFIX
-
 
 # Comprehensive tests for create_schedule_from_minutes
 

@@ -1,10 +1,8 @@
 """Integration tests for URL management workflow."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
-from telegram import Update, User
-from telegram.ext import ContextTypes
 
 from handlers.urlwatch_manage import add_url, delete_url, edit_url, view_urls
 from helpers.urlwatch_helpers import load_urls

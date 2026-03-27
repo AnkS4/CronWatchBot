@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import yaml
 
 from config.logging import logger
-from utils import escape_html, format_bold, format_code
+from utils import format_bold, format_code
 
 URLS_FILE = str(Path.home() / ".config" / "urlwatch" / "urls.yaml")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB maximum file size
@@ -128,8 +128,6 @@ def get_display_name(entry: dict[str, Any]) -> str:
     if url := entry.get("url"):
         return str(url)
     return "Unknown"
-
-
 
 
 def format_url_summary(entry: dict[str, Any], index: int) -> str:

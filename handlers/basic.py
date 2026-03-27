@@ -140,10 +140,12 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
     if is_command:
-        await update.message.reply_text("❓ Unknown command. Use <code>/help</code> for available commands.", parse_mode="HTML")
+        await update.message.reply_text(
+            "❓ Unknown command. Use <code>/help</code> for available commands.", parse_mode="HTML"
+        )
     else:
         await update.message.reply_text(
             "👋 I only respond to commands.\n\n"
             "Use <code>/help</code> to see available commands or <code>/start</code> to get started.",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )

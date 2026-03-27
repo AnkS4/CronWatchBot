@@ -183,15 +183,20 @@ def test_validate_url_invalid(invalid_url):
         ({"name": "My Site", "url": "https://example.com"}, "My Site"),
         ({"url": "https://example.com"}, "https://example.com"),
         ({}, "Unknown"),
-        ({"name": "", "url": "https://example.com"}, "https://example.com"),  # Fixed: empty name falls back to URL
-        ({"name": None, "url": "https://example.com"}, "https://example.com"),  # Added: None name falls back to URL
+        (
+            {"name": "", "url": "https://example.com"},
+            "https://example.com",
+        ),  # Fixed: empty name falls back to URL
+        (
+            {"name": None, "url": "https://example.com"},
+            "https://example.com",
+        ),  # Added: None name falls back to URL
     ],
     ids=["with_name", "without_name", "no_fields", "empty_name", "none_name"],
 )
 def test_get_display_name(entry, expected):
     """Test display name extraction from URL entries."""
     assert get_display_name(entry) == expected
-
 
 
 def test_format_url_summary_basic():

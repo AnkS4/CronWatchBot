@@ -1,10 +1,9 @@
 """Tests for shared handler utilities."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from telegram import Update, User
-from telegram.ext import ContextTypes
 
 from handlers.shared import ERROR_MESSAGES, auth_and_error_handler, send_error, validate_args
 

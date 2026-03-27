@@ -3,8 +3,6 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from telegram import Update, User
-from telegram.ext import ContextTypes
 
 from handlers.urlwatch_manage import (
     add_url,
