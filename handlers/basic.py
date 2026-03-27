@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from config import ALLOWED_USER_IDS
 from config.logging import logger
 
 from .shared import auth_and_error_handler
@@ -114,6 +115,8 @@ Step 3. To schedule automatic checks, type: <code>/crontab_add &lt;job number&gt
 async def edited_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle edited messages with a simple response.
 
+    Silently ignores edits from unauthorized users to avoid leaking bot existence.
+
     Args:
         update: Telegram update object containing the edited message.
         context: Telegram context for the command.
@@ -121,8 +124,10 @@ async def edited_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     Returns:
         None
     """
+    if not update.effective_user or update.effective_user.id not in ALLOWED_USER_IDS:
+        return
     if update.edited_message:
-        await update.edited_message.reply_text("i️ Message edits are not considered.")
+        await update.edited_message.reply_text("ℹ️ Message edits are not considered.")
 
 
 @auth_and_error_handler

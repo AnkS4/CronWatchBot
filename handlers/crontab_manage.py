@@ -87,7 +87,7 @@ async def validate_job_index_and_minutes(
     try:
         job_index = int(args[0])
         minutes = int(args[1])
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         await send_error(update, "invalid_args")
         return None, None
 
@@ -156,8 +156,10 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     # Validate job_index for crontab safety (defense in depth)
-    assert isinstance(job_index, int), f"job_index must be int, got {type(job_index)}"
-    assert job_index >= 1, f"Invalid job_index for crontab: {job_index}"
+    if not isinstance(job_index, int) or job_index < 1:
+        logger.error("Invalid job_index for crontab: %s", job_index)
+        await send_error(update, "invalid_args")
+        return
 
     # Check if a cron job already exists for this URL index
     cron = get_cron()
@@ -187,8 +189,8 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         return
 
-    # At this point, schedule is not None, so human should also not be None
-    assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
+    if human is None:
+        return
 
     command = build_urlwatch_command(job_index)
     job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
@@ -258,8 +260,8 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             )
         return
 
-    # At this point, schedule is not None, so human should also not be None
-    assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
+    if human is None:
+        return
 
     # Modify the job from this cron instance
     job = jobs[job_index - 1]  # Convert to 0-based index
@@ -308,7 +310,7 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     try:
         idx = int(context.args[0]) - 1
-    except ValueError, IndexError:
+    except (ValueError, IndexError):
         await send_error(update, "invalid_args")
         return
 

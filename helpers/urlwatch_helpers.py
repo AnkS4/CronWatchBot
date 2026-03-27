@@ -99,7 +99,7 @@ def validate_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         return bool(parsed.scheme in ("http", "https") and parsed.netloc)
-    except ValueError, TypeError, AttributeError:
+    except (ValueError, TypeError, AttributeError):
         return False
 
 

@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Any
 
-from dotenv import load_dotenv
 from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
@@ -17,8 +16,6 @@ if TYPE_CHECKING:
 from config import TOKEN
 from config.logging import install_telegram_http_filter, logger
 from handlers import basic, crontab_manage, urlwatch_manage
-
-load_dotenv()  # Load environment variables first
 
 # Reload existing crontab on startup to ensure crond picks up persisted jobs
 try:

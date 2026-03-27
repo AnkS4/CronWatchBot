@@ -121,7 +121,7 @@ def update_crontab_indices_after_deletion(deleted_index: int) -> tuple[bool, lis
         - Returns (True, [2])
     """
     cron = get_cron()
-    jobs = list_urlwatch_jobs()
+    jobs = [job for job in cron if job.comment and job.comment.startswith(CRONWATCH_COMMENT_PREFIX)]
     updated_indices = []
     job_removed = False
 

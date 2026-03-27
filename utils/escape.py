@@ -39,18 +39,6 @@ def format_bold(text: str) -> str:
     return f"<b>{escape_html(text)}</b>"
 
 
-def format_italic(text: str) -> str:
-    """Format text as italic in HTML.
-
-    Args:
-        text: The text to format as italic.
-
-    Returns:
-        HTML-formatted italic text.
-    """
-    return f"<i>{escape_html(text)}</i>"
-
-
 def format_pre(text: str) -> str:
     """Format text as preformatted block in HTML.
 

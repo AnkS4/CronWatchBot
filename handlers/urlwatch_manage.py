@@ -150,11 +150,11 @@ def _parse_property_args(args: list[str]) -> dict[str, Any]:
 
 async def _show_current_properties(update: Update, entry: dict[str, Any], idx: int) -> None:
     """Display current properties for a URL entry."""
-    property_keys = ["timeout", "user_agent", "headers", "cookies", "ignore_connection_errors"]
+    core_keys = {"url", "name", "filter"}
     props_display = [
         f"• {format_code(key)}: {escape_html(str(entry[key]))}"
-        for key in property_keys
-        if key in entry
+        for key in entry
+        if key not in core_keys
     ]
 
     if props_display and update.message:
@@ -566,11 +566,12 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         }
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            yaml.safe_dump(temp_entry, f, sort_keys=False)
+            yaml.safe_dump_all([temp_entry], f, sort_keys=False, default_flow_style=False)
             temp_file = f.name
 
         urlwatch_path = shutil.which("urlwatch")
         if not urlwatch_path or not Path(urlwatch_path).is_file():
+            Path(temp_file).unlink(missing_ok=True)
             if update.message:
                 await update.message.reply_text("❌ urlwatch command not found in PATH")
             return

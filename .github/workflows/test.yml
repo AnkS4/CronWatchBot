@@ -44,12 +44,11 @@ jobs:
 
     - name: Type check with mypy
       run: |
-        uv run mypy config/ helpers/ handlers/ main.py
+        uv run mypy config/ helpers/ handlers/ utils/ main.py
 
     - name: Run tests with coverage
       run: |
-        uv run pytest tests/ -v --cov=config --cov=helpers --cov=handlers \
-          --cov-report=term-missing --cov-fail-under=80
+        uv run pytest
 
     # TODO: Add Codecov integration later if needed (codecov.io)
 

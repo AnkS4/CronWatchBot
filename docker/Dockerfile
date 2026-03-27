@@ -32,7 +32,7 @@ FROM python:3.14-alpine3.23 AS runtime
 LABEL org.opencontainers.image.title="cronwatchbot" \
       org.opencontainers.image.description="Telegram bot for managing urlwatch and crontab" \
       org.opencontainers.image.source="https://github.com/AnkS4/CronWatchBot" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
 
 # PYTHONPYCACHEPREFIX: the builder already compiled .pyc files via UV_COMPILE_BYTECODE;
 # this redirects any new writes (e.g. from third-party code at runtime) out of /app.

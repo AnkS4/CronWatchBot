@@ -63,7 +63,7 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 │   ├── __init__.py               # Package exports
 │   └── escape.py                 # HTML escaping for Telegram
 ├── � .env.example               # Environment variables template
-├── 📜 LICENSE                    # MIT License
+├── 📜 LICENSE                    # GPL-3.0-or-later License
 ├── 🐍 main.py                    # Bot entry point
 ├── 📄 pyproject.toml             # Python dependencies (uv)
 ├── 📄 README.md                  # Documentation
@@ -594,7 +594,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy .
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GPL-3.0-or-later License - see [LICENSE](LICENSE) file for details.
 
 ---
 
