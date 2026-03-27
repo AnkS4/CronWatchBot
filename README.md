@@ -1,6 +1,7 @@
 # CronWatchBot
 
 [![Tests](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml/badge.svg)](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml)
+[![Security Scan](https://github.com/AnkS4/CronWatchBot/actions/workflows/security.yml/badge.svg)](https://github.com/AnkS4/CronWatchBot/actions/workflows/security.yml)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
@@ -221,6 +222,10 @@ uv run python main.py
 - `/crontab_view` - View all scheduled jobs
 - `/crontab_edit <job_index> <minutes>` - Update schedule
 - `/crontab_delete <job_index>` - Remove schedule
+
+### Message Handling
+
+**Edited Messages:** The bot does not process edited messages. If you edit a message after sending it, the bot will respond with "ℹ️ Message edits are not considered." This simplifies the bot's logic and prevents unintended command re-execution. Always send a new message instead of editing existing ones.
 
 ### Example Workflow
 

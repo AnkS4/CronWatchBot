@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from telegram import Update, User
 
-from handlers.basic import help_command, start, unknown
+from handlers.basic import edited_message, help_command, start, unknown
 
 # Comprehensive tests for help_command
 
@@ -166,3 +166,23 @@ async def test_unknown_with_whitespace_only(mock_update, mock_context):
     await unknown(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_edited_message_sends_info_response(mock_context):
+    """Test edited_message handler sends simple info response."""
+    update = Mock(spec=Update)
+    update.edited_message = AsyncMock()
+
+    await edited_message(update, mock_context)
+
+    update.edited_message.reply_text.assert_called_once_with("i️ Message edits are not considered.")
+
+
+@pytest.mark.asyncio
+async def test_edited_message_with_no_edited_message(mock_context):
+    """Test edited_message handler when there's no edited message."""
+    update = Mock(spec=Update)
+    update.edited_message = None
+
+    await edited_message(update, mock_context)

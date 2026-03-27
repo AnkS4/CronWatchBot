@@ -111,6 +111,20 @@ Step 3. To schedule automatic checks, type: <code>/crontab_add &lt;job number&gt
         )
 
 
+async def edited_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle edited messages with a simple response.
+
+    Args:
+        update: Telegram update object containing the edited message.
+        context: Telegram context for the command.
+
+    Returns:
+        None
+    """
+    if update.edited_message:
+        await update.edited_message.reply_text("i️ Message edits are not considered.")
+
+
 @auth_and_error_handler
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown commands and non-command text messages.

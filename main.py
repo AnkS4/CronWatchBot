@@ -78,6 +78,7 @@ def main() -> None:
     for cmd, handler in command_handlers.items():
         app.add_handler(CommandHandler(cmd, handler))
 
+    app.add_handler(MessageHandler(filters.UpdateType.EDITED_MESSAGE, basic.edited_message))
     app.add_handler(MessageHandler(filters.TEXT, basic.unknown))
     logger.info("CronWatchBot is running...")
     app.run_polling()
