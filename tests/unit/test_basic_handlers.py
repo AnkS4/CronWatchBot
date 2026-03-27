@@ -169,14 +169,15 @@ async def test_unknown_with_whitespace_only(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_edited_message_sends_info_response(mock_context):
+async def test_edited_message_sends_info_response(mock_update, mock_context):
     """Test edited_message handler sends simple info response."""
-    update = Mock(spec=Update)
-    update.edited_message = AsyncMock()
+    mock_update.edited_message = AsyncMock()
 
-    await edited_message(update, mock_context)
+    await edited_message(mock_update, mock_context)
 
-    update.edited_message.reply_text.assert_called_once_with("ℹ️ Message edits are not considered.")
+    mock_update.edited_message.reply_text.assert_called_once_with(
+        "ℹ️ Message edits are not considered."
+    )
 
 
 @pytest.mark.asyncio
