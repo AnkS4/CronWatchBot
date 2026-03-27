@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import tempfile
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 from _pytest.monkeypatch import MonkeyPatch
 import pytest
@@ -16,6 +16,13 @@ def pytest_configure(config):
     mp.setenv("TELEGRAM_BOT_TOKEN", "test_token")
     mp.setenv("URLS_FILE", str(Path(tempfile.gettempdir()) / "test_urls.yaml"))
     mp.setenv("ALLOWED_USER_IDS", "123456789")
+
+
+@pytest.fixture(autouse=True)
+def bypass_rate_limit():
+    """Bypass rate limiting during tests."""
+    with patch("handlers.shared.RATE_LIMIT_SECONDS", 0):
+        yield
 
 
 @pytest.fixture

@@ -67,7 +67,7 @@ async def test_auth_and_error_handler_exception(mock_update, mock_context):
     mock_update.message.reply_text.assert_called_once()
     call_args = mock_update.message.reply_text.call_args[0][0]
     # Rate limiting message appears before error message in current implementation
-    assert "Please wait a moment" in call_args or "❌ An error occurred" in call_args
+    assert "Please wait a moment" in call_args or "💥 An error occurred" in call_args
 
 
 @pytest.mark.asyncio

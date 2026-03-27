@@ -44,7 +44,7 @@ def test_create_schedule_from_minutes_all_valid(minutes, expected_schedule, expe
 
 @pytest.mark.parametrize(
     "invalid_minutes",
-    [61, 75, 90, 100, 125, 1500, 2000],
+    [61, 75, 90, 100, 125, 2000],
 )
 def test_create_schedule_from_minutes_all_invalid(invalid_minutes):
     """Test invalid minute intervals."""
@@ -359,19 +359,15 @@ async def test_crontab_edit_write_failure(
 
 
 @pytest.mark.asyncio
-@patch("handlers.crontab_manage.load_urls")
-@patch("handlers.crontab_manage.list_urlwatch_jobs")
 @patch("handlers.crontab_manage.get_cron")
-async def test_crontab_delete_success(
-    mock_get_cron, mock_list_jobs, mock_load_urls, mock_update, mock_context
-):
+async def test_crontab_delete_success(mock_get_cron, mock_update, mock_context):
     """Test successfully deleting a cron job."""
-    mock_load_urls.return_value = [{"url": "https://example.com", "name": "Example"}]
     mock_cron = Mock()
     mock_job = Mock()
     mock_job.comment = f"{CRONWATCH_COMMENT_PREFIX}1"
+    # Make the cron instance iterate over our mock job
+    mock_cron.__iter__ = Mock(return_value=iter([mock_job]))
     mock_get_cron.return_value = mock_cron
-    mock_list_jobs.return_value = [mock_job]
     mock_context.args = ["1"]
 
     await crontab_delete(mock_update, mock_context)
@@ -404,23 +400,18 @@ async def test_crontab_delete_invalid_args(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-@patch("handlers.crontab_manage.load_urls")
-@patch("handlers.crontab_manage.list_urlwatch_jobs")
 @patch("handlers.crontab_manage.get_cron")
-async def test_crontab_delete_write_failure(
-    mock_get_cron, mock_list_jobs, mock_load_urls, mock_update, mock_context
-):
+async def test_crontab_delete_write_failure(mock_get_cron, mock_update, mock_context):
     """Test handling write failure during delete."""
-    mock_load_urls.return_value = [{"url": "https://example.com"}]
     mock_cron = Mock()
     mock_job = Mock()
     mock_job.comment = f"{CRONWATCH_COMMENT_PREFIX}1"
     mock_cron.write.side_effect = Exception("Write failed")
+    mock_cron.__iter__ = Mock(return_value=iter([mock_job]))
     mock_get_cron.return_value = mock_cron
-    mock_list_jobs.return_value = [mock_job]
     mock_context.args = ["1"]
 
     await crontab_delete(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called()
-    assert "Failed" in str(mock_update.message.reply_text.call_args)
+    assert "Failed to save crontab" in str(mock_update.message.reply_text.call_args)

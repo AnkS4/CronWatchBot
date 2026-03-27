@@ -204,8 +204,8 @@ def test_format_url_summary_basic():
     entry = {"name": "Example", "url": "https://example.com"}
     result = format_url_summary(entry, 1)
 
-    assert "📌 *Example*" in result
-    assert "🔗 `https://example.com`" in result
+    assert "📌 <b>Example</b>" in result
+    assert "🔗 <code>https://example.com</code>" in result
 
 
 def test_format_url_summary_with_filters():

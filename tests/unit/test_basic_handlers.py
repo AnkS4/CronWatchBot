@@ -25,7 +25,7 @@ async def test_help_command_sends_help_text(mock_update, mock_context):
     assert "/add" in help_text
     assert "/list" in help_text
     assert "/crontab" in help_text
-    assert "Markdown" in str(call_args[1])
+    assert "HTML" in str(call_args[1])
 
 
 @pytest.mark.asyncio
@@ -57,7 +57,7 @@ async def test_start_command_sends_welcome(mock_update, mock_context):
     assert "CronWatchBot" in welcome_text
     assert "/add" in welcome_text
     assert "/help" in welcome_text
-    assert "Markdown" in str(call_args[1])
+    assert "HTML" in str(call_args[1])
 
 
 @pytest.mark.asyncio

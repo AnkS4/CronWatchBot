@@ -51,6 +51,8 @@ async def test_crontab_add_view_delete_workflow(
 
     # Step 3: Delete cron job
     mock_context.args = ["1"]
+    # For delete, we need to return the job from the cron instance iterator
+    mock_cron.__iter__ = Mock(return_value=iter([mock_job]))
     await crontab_delete(mock_update, mock_context)
 
     # Verify job was removed
