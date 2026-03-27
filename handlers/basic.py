@@ -127,7 +127,7 @@ async def edited_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.effective_user or update.effective_user.id not in ALLOWED_USER_IDS:
         return
     if update.edited_message:
-        await update.edited_message.reply_text("i️ Message edits are not considered.")
+        await update.edited_message.reply_text("ℹ️ Message edits are not considered.")
 
 
 @auth_and_error_handler

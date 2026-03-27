@@ -125,12 +125,13 @@ def test_get_job_index_from_comment_invalid(invalid_comment):
 @patch("helpers.crontab_helpers.get_cron")
 def test_update_crontab_indices_removes_deleted_job(mock_get_cron, mock_list_jobs):
     """Test that deleted job is removed and subsequent jobs are renumbered."""
-    mock_cron = Mock()
-    mock_get_cron.return_value = mock_cron
-
     job1 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}1")
     job2 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}2")
     job3 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}3")
+
+    mock_cron = Mock()
+    mock_cron.__iter__ = Mock(return_value=iter([job1, job2, job3]))
+    mock_get_cron.return_value = mock_cron
 
     mock_list_jobs.return_value = [job1, job2, job3]
 
@@ -148,12 +149,13 @@ def test_update_crontab_indices_removes_deleted_job(mock_get_cron, mock_list_job
 @patch("helpers.crontab_helpers.get_cron")
 def test_update_crontab_indices_updates_higher_indices(mock_get_cron, mock_list_jobs):
     """Test that only jobs with higher indices are updated."""
-    mock_cron = Mock()
-    mock_get_cron.return_value = mock_cron
-
     job1 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}1")
     job3 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}3")
     job5 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}5")
+
+    mock_cron = Mock()
+    mock_cron.__iter__ = Mock(return_value=iter([job1, job3, job5]))
+    mock_get_cron.return_value = mock_cron
 
     mock_list_jobs.return_value = [job1, job3, job5]
 
@@ -171,10 +173,12 @@ def test_update_crontab_indices_updates_higher_indices(mock_get_cron, mock_list_
 @patch("helpers.crontab_helpers.get_cron")
 def test_update_crontab_indices_ignores_invalid_comments(mock_get_cron, mock_list_jobs):
     """Test that jobs with invalid comments are ignored."""
+    job_invalid = Mock(comment="invalid-comment")
+
     mock_cron = Mock()
+    mock_cron.__iter__ = Mock(return_value=iter([job_invalid]))
     mock_get_cron.return_value = mock_cron
 
-    job_invalid = Mock(comment="invalid-comment")
     mock_list_jobs.return_value = [job_invalid]
 
     job_removed, updated_indices = update_crontab_indices_after_deletion(1)
@@ -190,11 +194,13 @@ def test_update_crontab_indices_ignores_invalid_comments(mock_get_cron, mock_lis
 @patch("helpers.crontab_helpers.logger")
 def test_update_crontab_indices_handles_write_error(mock_logger, mock_get_cron, mock_list_jobs):
     """Test error handling when crontab write fails."""
+    job1 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}2")
+
     mock_cron = Mock()
+    mock_cron.__iter__ = Mock(return_value=iter([job1]))
     mock_cron.write.side_effect = Exception("Write failed")
     mock_get_cron.return_value = mock_cron
 
-    job1 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}2")
     mock_list_jobs.return_value = [job1]
 
     job_removed, updated_indices = update_crontab_indices_after_deletion(1)

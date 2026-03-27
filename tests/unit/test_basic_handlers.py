@@ -176,7 +176,7 @@ async def test_edited_message_sends_info_response(mock_context):
 
     await edited_message(update, mock_context)
 
-    update.edited_message.reply_text.assert_called_once_with("i️ Message edits are not considered.")
+    update.edited_message.reply_text.assert_called_once_with("ℹ️ Message edits are not considered.")
 
 
 @pytest.mark.asyncio

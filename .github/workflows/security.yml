@@ -23,41 +23,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
       - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile
-          tags: cronwatchbot:latest
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: docker build -f docker/Dockerfile -t cronwatchbot:latest .
       
-      - name: Run Trivy vulnerability scanner (SARIF)
+      - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: 'cronwatchbot:latest'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          scanners: 'vuln'  # Only scan for vulnerabilities, not secrets
-          ignore-unfixed: true  # Only fail on fixable vulnerabilities
       
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-      
-      - name: Run Trivy vulnerability scanner (Table)
-        uses: aquasecurity/trivy-action@0.35.0
-        if: always()
-        with:
-          image-ref: 'cronwatchbot:latest'
-          format: 'table'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-          scanners: 'vuln'  # Only scan for vulnerabilities, not secrets
-          ignore-unfixed: true

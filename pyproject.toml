@@ -60,6 +60,7 @@ target-version = "py314"
 line-length = 100
 
 [tool.ruff.lint]
+allowed-confusables = ["ℹ"]   # Allow info emoji in Telegram bot messages
 select = [
     "E", "W",   # pycodestyle
     "F",        # pyflakes
