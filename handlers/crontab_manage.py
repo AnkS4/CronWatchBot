@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from config.logging import logger
 from helpers.crontab_helpers import (
@@ -87,7 +87,7 @@ async def validate_job_index_and_minutes(
     try:
         job_index = int(args[0])
         minutes = int(args[1])
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         await send_error(update, "invalid_args")
         return None, None
 
@@ -125,6 +125,108 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("\n".join(msg), parse_mode="HTML")
 
 
+async def _validate_crontab_add_params(
+    update: Update, context_args: list[str] | None
+) -> tuple[int | None, int | None, list[Any] | None]:
+    """Validate all parameters for crontab_add command.
+
+    Returns:
+        Tuple of (job_index, minutes, urls) or (None, None, None) if validation fails.
+    """
+    job_index, minutes = await validate_job_index_and_minutes(update, context_args)
+    if job_index is None:
+        return None, None, None
+
+    # Validate job index against existing URLs
+    urls = load_urls()
+    if not urls or job_index < 1 or job_index > len(urls):
+        await send_error(update, "invalid_index", len(urls) if urls else 0)
+        return None, None, None
+
+    # Validate job_index for crontab safety (defense in depth)
+    if not isinstance(job_index, int) or job_index < 1:
+        logger.error("Invalid job_index for crontab: %s", job_index)
+        await send_error(update, "invalid_args")
+        return None, None, None
+
+    return job_index, minutes, urls
+
+
+async def _check_existing_job(update: Update, job_index: int) -> bool:
+    """Check if a cron job already exists for the given URL index.
+
+    Returns:
+        True if job exists (and error message was sent), False otherwise.
+    """
+    cron = get_cron()
+    existing_jobs = [
+        job
+        for job in cron
+        if job.comment and job.comment == f"{CRONWATCH_COMMENT_PREFIX}{job_index}"
+    ]
+
+    if existing_jobs:
+        if update.message:
+            await update.message.reply_text(
+                f"⚠️ A cron job already exists for URL #{job_index}.\n\n"
+                f"Use <code>/crontab_edit {job_index} &lt;minutes&gt;</code> to update the schedule,\n"
+                f"or <code>/crontab_delete {len(existing_jobs)}</code> to remove it first.",
+                parse_mode="HTML",
+            )
+        return True
+    return False
+
+
+async def _create_cron_job(
+    update: Update, job_index: int, minutes: int, urls: list[Any] | None
+) -> bool:
+    """Create the actual cron job.
+
+    Returns:
+        True if successful, False if failed.
+    """
+    if urls is None:
+        return False
+
+    schedule, human = create_schedule_from_minutes(minutes)
+    if schedule is None:
+        if update.message:
+            await update.message.reply_text(
+                "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
+            )
+        return False
+
+    if human is None:
+        return False
+
+    command = build_urlwatch_command(job_index)
+    cron = get_cron()
+    job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
+    job.setall(schedule)
+
+    try:
+        cron.write()
+    except Exception as e:
+        logger.error("Failed to write crontab: %s", e)
+        if update.message:
+            await update.message.reply_text(
+                "❌ Failed to save crontab. Check permissions and cron service."
+            )
+        return False
+
+    logger.info("Added job: runs %s", human)
+    if update.message:
+        # Get URL details for better feedback
+        url_entry = urls[job_index - 1]
+        url_name = url_entry.get("name", f"URL #{job_index}")
+        url_url = url_entry.get("url", "")
+
+        summary = f"✅ Added scheduled job:\n\n📌 {format_bold(url_name)}\n   🔗 {format_code(url_url)}\n   ⏰ Runs {escape_html(human)}\n   📋 Job #{len(list_urlwatch_jobs())} created."
+        await update.message.reply_text(summary, parse_mode="HTML")
+
+    return True
+
+
 @auth_and_error_handler
 @validate_args(
     2,
@@ -145,76 +247,21 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     """
     if update.effective_user:
         logger.info("CrontabAdd command requested by %s", update.effective_user.id)
-    job_index, minutes = await validate_job_index_and_minutes(update, context.args)
+
+    job_index, minutes, urls = await _validate_crontab_add_params(update, context.args)
     if job_index is None:
         return
 
-    # Validate job index against existing URLs
-    urls = load_urls()
-    if not urls or job_index < 1 or job_index > len(urls):
-        await send_error(update, "invalid_index", len(urls) if urls else 0)
-        return
-
-    # Validate job_index for crontab safety (defense in depth)
-    if not isinstance(job_index, int) or job_index < 1:
-        logger.error("Invalid job_index for crontab: %s", job_index)
-        await send_error(update, "invalid_args")
-        return
-
-    # Check if a cron job already exists for this URL index
-    cron = get_cron()
-    existing_jobs = [
-        job
-        for job in cron
-        if job.comment and job.comment == f"{CRONWATCH_COMMENT_PREFIX}{job_index}"
-    ]
-
-    if existing_jobs:
-        if update.message:
-            await update.message.reply_text(
-                f"⚠️ A cron job already exists for URL #{job_index}.\n\n"
-                f"Use <code>/crontab_edit {job_index} &lt;minutes&gt;</code> to update the schedule,\n"
-                f"or <code>/crontab_delete {len(existing_jobs)}</code> to remove it first.",
-                parse_mode="HTML",
-            )
+    if await _check_existing_job(update, job_index):
         return
 
     if minutes is None:
         return  # Already handled by validate_job_index_and_minutes
-    schedule, human = create_schedule_from_minutes(minutes)
-    if schedule is None:
-        if update.message:
-            await update.message.reply_text(
-                "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
-            )
+
+    if urls is None:
         return
 
-    if human is None:
-        return
-
-    command = build_urlwatch_command(job_index)
-    job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
-    job.setall(schedule)
-
-    try:
-        cron.write()
-    except Exception as e:
-        logger.error("Failed to write crontab: %s", e)
-        if update.message:
-            await update.message.reply_text(
-                "❌ Failed to save crontab. Check permissions and cron service."
-            )
-        return
-
-    logger.info("Added job: runs %s", human)
-    if update.message:
-        # Get URL details for better feedback
-        url_entry = urls[job_index - 1]
-        url_name = url_entry.get("name", f"URL #{job_index}")
-        url_url = url_entry.get("url", "")
-
-        summary = f"✅ Added scheduled job:\n\n📌 {format_bold(url_name)}\n   🔗 {format_code(url_url)}\n   ⏰ Runs {escape_html(human)}\n   📋 Job #{len(list_urlwatch_jobs())} created."
-        await update.message.reply_text(summary, parse_mode="HTML")
+    await _create_cron_job(update, job_index, minutes, urls)
 
 
 @auth_and_error_handler
@@ -310,7 +357,7 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     try:
         idx = int(context.args[0]) - 1
-    except (ValueError, IndexError):
+    except ValueError, IndexError:
         await send_error(update, "invalid_args")
         return
 
