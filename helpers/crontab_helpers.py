@@ -98,7 +98,7 @@ def get_job_index_from_comment(comment: str) -> int:
     return -1
 
 
-def update_crontab_indices_after_deletion(deleted_index: int) -> list[int]:
+def update_crontab_indices_after_deletion(deleted_index: int) -> tuple[bool, list[int]]:
     """Update crontab job indices after a URL entry is deleted.
 
     When a URL entry is deleted, this function:
@@ -110,17 +110,20 @@ def update_crontab_indices_after_deletion(deleted_index: int) -> list[int]:
         deleted_index: 1-based index of the deleted URL entry.
 
     Returns:
-        List[int]: List of updated job indices (1-based). Empty list on error.
+        Tuple[bool, List[int]]: (job_removed, updated_indices)
+        - job_removed: True if a job for the deleted entry was found and removed
+        - updated_indices: List of updated job indices (1-based). Empty list on error.
 
     Examples:
         If URL #2 is deleted and jobs exist for URLs #1, #2, #3:
         - Job for URL #2 is removed
         - Job for URL #3 is updated to point to URL #2
-        - Returns [2] (the new index for what was URL #3)
+        - Returns (True, [2])
     """
     cron = get_cron()
     jobs = list_urlwatch_jobs()
     updated_indices = []
+    job_removed = False
 
     for job in jobs:
         job_index = get_job_index_from_comment(job.comment)
@@ -130,11 +133,16 @@ def update_crontab_indices_after_deletion(deleted_index: int) -> list[int]:
         # If job points to deleted entry, remove it
         if job_index == deleted_index:
             cron.remove(job)
+            job_removed = True
             continue
 
         # If job points to entry after deleted one, decrement index
         if job_index > deleted_index:
             new_index = job_index - 1
+            # Validate new_index for crontab safety (defense in depth)
+            if not isinstance(new_index, int) or new_index < 1:
+                logger.error("Invalid new_index for crontab: %s", new_index)
+                continue
             job.set_command(build_urlwatch_command(new_index))
             job.set_comment(f"{CRONWATCH_COMMENT_PREFIX}{new_index}")
             updated_indices.append(new_index)
@@ -143,6 +151,6 @@ def update_crontab_indices_after_deletion(deleted_index: int) -> list[int]:
         cron.write()
     except Exception as e:
         logger.error("Failed to write crontab during index update: %s", e)
-        return []
+        return False, []
 
-    return updated_indices
+    return job_removed, updated_indices

@@ -4,7 +4,7 @@ version = "2.1"
 description = "Manage urlwatch and crontab via Telegram"
 readme = "README.md"
 requires-python = ">=3.14"
-license = "MIT"
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE*"]
 authors = [
     { name = "Aniket Satbhai", email = "anks@tuta.io" },

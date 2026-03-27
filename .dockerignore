@@ -13,7 +13,6 @@ venv/
 .env.local
 
 # Development
-*.md
 tests/
 .pytest_cache/
 *.log

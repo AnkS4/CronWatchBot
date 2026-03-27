@@ -10,24 +10,6 @@ from handlers.crontab_manage import crontab_add, crontab_delete, crontab_edit, c
 from helpers.crontab_helpers import CRONWATCH_COMMENT_PREFIX
 
 
-@pytest.fixture
-def mock_update():
-    """Create a mock Telegram Update object."""
-    update = Mock(spec=Update)
-    update.effective_user = Mock(spec=User)
-    update.effective_user.id = 123456789
-    update.message = AsyncMock()
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    """Create a mock Telegram Context object."""
-    context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-    context.args = []
-    return context
-
-
 @pytest.mark.asyncio
 @patch("handlers.crontab_manage.load_urls")
 @patch("handlers.crontab_manage.get_cron")

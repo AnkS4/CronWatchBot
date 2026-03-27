@@ -25,72 +25,56 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if update.message:
         await update.message.reply_text(
             """
-📚 *CronWatchBot — Help & Command Guide*
+📚 <b>CronWatchBot — Help &amp; Command Guide</b>
 
-*👋 Getting Started:*
+<b>👋 Getting Started:</b>
 Step 1. Add a website to monitor:
-   `/add <url> [optional name]`
-   ```
-   /add https://news.ycombinator.com/ Hacker News
-   ```
+   <code>/add &lt;url&gt; [optional name]</code>
+   <pre>/add https://news.ycombinator.com/ Hacker News</pre>
 Step 2. View all monitored sites:
-   `/list`
+   <code>/list</code>
 Step 3. Schedule automatic checks:
-   `/crontab_add <job number> <minutes>`
-   ```
-   /crontab_add 1 60
-   ```
+   <code>/crontab_add &lt;job number&gt; &lt;minutes&gt;</code>
+   <pre>/crontab_add 1 60</pre>
 
-*🔄 Managing URLs:*
+<b>🔄 Managing URLs:</b>
 - Edit a job:
-   `/edit <index> <url> [name]`
-   ```
-   /edit 1 https://newurl.com New Name
-   ```
+   <code>/edit &lt;index&gt; &lt;url&gt; [name]</code>
+   <pre>/edit 1 https://newurl.com New Name</pre>
 - Delete a job:
-   `/delete <index>`
-   ```
-   /delete 2
-   ```
+   <code>/delete &lt;index&gt;</code>
+   <pre>/delete 2</pre>
 - Show filters or properties:
-   `/editfilter <index>`
-   `/editprop <index>`
+   <code>/editfilter &lt;index&gt;</code>
+   <code>/editprop &lt;index&gt;</code>
 - Add or change filters:
-   `/editfilter <index> [filters...]`
-   ```
-   /editfilter 1 css:span.titleline>a html2text
-   ```
+   <code>/editfilter &lt;index&gt; [filters...]</code>
+   <pre>/editfilter 1 css:span.titleline&gt;a html2text</pre>
 - Add or change properties:
-   `/editprop <index> [property:value] ...`
-   ```
-   /editprop 1 timeout:30
-   ```
+   <code>/editprop &lt;index&gt; [property:value] ...</code>
+   <pre>/editprop 1 timeout:30</pre>
 
-*⏰ Scheduling (Crontab):*
+<b>⏰ Scheduling (Crontab):</b>
 - View all scheduled jobs:
-   `/crontab_view`
+   <code>/crontab_view</code>
 - Add a schedule:
-   `/crontab_add <job_index> <minutes>`
-   ```
-   /crontab_add 1 60
-   ```
+   <code>/crontab_add &lt;job_index&gt; &lt;minutes&gt;</code>
+   <pre>/crontab_add 1 60</pre>
 - Edit a schedule:
-   `/crontab_edit <index> <minutes>`
-   ```
-   /crontab_edit 1 30
-   ```
+   <code>/crontab_edit &lt;index&gt; &lt;minutes&gt;</code>
+   <pre>/crontab_edit 1 30</pre>
 - Delete a schedule:
-   `/crontab_delete <index>`
+   <code>/crontab_delete &lt;index&gt;</code>
 
-💡 *Tips:*
-- Use `/list` to see all URLs and their numbers for scheduling.
-- Use `/crontab_view` to see all scheduled jobs.
-- Send any command without arguments (e.g. `/edit`) to see usage and examples.
-- Use `/start` for a quick workflow overview.
+💡 <b>Tips:</b>
+- Use <code>/list</code> to see all URLs and their numbers for scheduling.
+- Use <code>/crontab_view</code> to see all scheduled jobs.
+- Send any command without arguments (e.g. <code>/edit</code>) to see usage and examples.
+- Use <code>/start</code> for a quick workflow overview.
 
-If you get stuck, just try `/help` again or use `/start` for a simple introduction!
+If you get stuck, just try <code>/help</code> again or use <code>/start</code> for a simple introduction!
         """,
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
@@ -110,26 +94,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
         await update.message.reply_text(
             """
-🤖 *Welcome to CronWatchBot!*
+🤖 <b>Welcome to CronWatchBot!</b>
 
-*🚀 Getting Started:*
+<b>🚀 Getting Started:</b>
 
-Step 1. To start watching a website, type: `/add <url> [optional name]`
-```
-/add https://news.ycombinator.com/ Hacker News
-```
-Step 2. To edit filters, type: `/editfilter <index> [filters...]`
-```
-/editfilter 1 css:span.titleline>a html2text
-```
-Step 3. To schedule automatic checks, type: `/crontab_add <job number> <minutes>`
-```
-/crontab_add 1 60
-```
+Step 1. To start watching a website, type: <code>/add &lt;url&gt; [optional name]</code>
+<pre>/add https://news.ycombinator.com/ Hacker News</pre>
+Step 2. To edit filters, type: <code>/editfilter &lt;index&gt; [filters...]</code>
+<pre>/editfilter 1 css:span.titleline&gt;a html2text</pre>
+Step 3. To schedule automatic checks, type: <code>/crontab_add &lt;job number&gt; &lt;minutes&gt;</code>
+<pre>/crontab_add 1 60</pre>
 
-💡 _Tip: Use_ `/help` _to see detailed usage help._
+💡 <i>Tip: Use</i> <code>/help</code> <i>to see detailed usage help.</i>
         """,
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
@@ -162,9 +140,10 @@ async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
     if is_command:
-        await update.message.reply_text("❓ Unknown command. Use `/help` for available commands.")
+        await update.message.reply_text("❓ Unknown command. Use <code>/help</code> for available commands.", parse_mode="HTML")
     else:
         await update.message.reply_text(
             "👋 I only respond to commands.\n\n"
-            "Use `/help` to see available commands or `/start` to get started."
+            "Use <code>/help</code> to see available commands or <code>/start</code> to get started.",
+            parse_mode="HTML"
         )

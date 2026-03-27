@@ -9,6 +9,7 @@ from helpers.crontab_helpers import (
     list_urlwatch_jobs,
 )
 from helpers.urlwatch_helpers import load_urls
+from utils import escape_html, format_bold, format_code
 
 from .shared import auth_and_error_handler, send_error, validate_args
 
@@ -26,8 +27,7 @@ def create_schedule_from_minutes(minutes: int) -> tuple[str | None, str | None]:
     """Create cron schedule expression and human-readable description from minutes.
 
     Converts a minute interval into a cron schedule expression and a human-friendly
-    description. Supports intervals less than 60 minutes, hourly intervals, and
-    daily intervals.
+    description. Supports minute intervals, hourly intervals, and daily intervals.
 
     Args:
         minutes: Interval in minutes for the cron job.
@@ -38,17 +38,34 @@ def create_schedule_from_minutes(minutes: int) -> tuple[str | None, str | None]:
     Examples:
         >>> create_schedule_from_minutes(15)
         ('*/15 * * * *', 'every 15 minutes')
+        >>> create_schedule_from_minutes(1)
+        ('*/1 * * * *', 'every 1 minute')
         >>> create_schedule_from_minutes(120)
-        ('0 */2 * * *', 'every 2 hour(s)')
+        ('0 */2 * * *', 'every 2 hours')
+        >>> create_schedule_from_minutes(2160)
+        ('0 */36 * * *', 'every 36 hours')
+        >>> create_schedule_from_minutes(10080)
+        ('0 0 */7 * *', 'every 7 days')
+        >>> create_schedule_from_minutes(1440)
+        ('0 0 */1 * *', 'every 1 day')
     """
+    # Minute intervals (< 60 minutes)
     if minutes < MINUTES_IN_HOUR:
-        return f"*/{minutes} * * * *", f"every {minutes} minutes"
+        label = "minute" if minutes == 1 else "minutes"
+        return f"*/{minutes} * * * *", f"every {minutes} {label}"
+    
+    # Daily intervals (exact day multiples)
     if minutes % MINUTES_IN_DAY == 0:
         days = minutes // MINUTES_IN_DAY
-        return f"0 0 */{days} * *", f"every {days} day(s)"
-    if minutes % MINUTES_IN_HOUR == 0 and minutes <= MINUTES_IN_DAY:
+        label = "day" if days == 1 else "days"
+        return f"0 0 */{days} * *", f"every {days} {label}"
+    
+    # Hourly intervals (exact hour multiples, any duration)
+    if minutes % MINUTES_IN_HOUR == 0:
         hours = minutes // MINUTES_IN_HOUR
-        return f"0 */{hours} * * *", f"every {hours} hour(s)"
+        label = "hour" if hours == 1 else "hours"
+        return f"0 */{hours} * * *", f"every {hours} {label}"
+    
     return None, None
 
 
@@ -97,19 +114,19 @@ async def crontab_view(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     jobs = list_urlwatch_jobs()
     if not jobs:
         if update.message:
-            await update.message.reply_text("🕑 *No scheduled jobs.*", parse_mode="Markdown")
+            await update.message.reply_text("🕑 <b>No scheduled jobs.</b>", parse_mode="HTML")
         return
 
-    msg = ["🕑 *Scheduled Jobs:*\n"]
+    msg = ["🕑 <b>Scheduled Jobs:</b>\n"]
     for idx, job in enumerate(jobs, 1):
-        msg.append(f"*{idx}.* ⏰ `{job.slices}` - `{job.command}`")
+        msg.append(f"<b>{idx}.</b> ⏰ {format_code(job.slices)} - {format_code(job.command)}")
 
     if update.message:
-        await update.message.reply_text("\n".join(msg), parse_mode="Markdown")
+        await update.message.reply_text("\n".join(msg), parse_mode="HTML")
 
 
 @auth_and_error_handler
-@validate_args(2, "❌ Usage: `/crontab_add <job_index> <minutes>`\n📝 Example: `/crontab_add 2 15`")
+@validate_args(2, "❌ Usage: <code>/crontab_add &lt;job_index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_add 2 15</code>")
 async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a new scheduled cron job for a URL entry.
 
@@ -135,6 +152,9 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await send_error(update, "invalid_index", len(urls) if urls else 0)
         return
 
+    # Validate job_index for crontab safety (defense in depth)
+    assert isinstance(job_index, int) and job_index >= 1, f"Invalid job_index for crontab: {job_index}"
+    
     # Check if a cron job already exists for this URL index
     cron = get_cron()
     existing_jobs = [
@@ -147,12 +167,14 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         if update.message:
             await update.message.reply_text(
                 f"⚠️ A cron job already exists for URL #{job_index}.\n\n"
-                f"Use `/crontab_edit {job_index} <minutes>` to update the schedule,\n"
-                f"or `/crontab_delete {len(existing_jobs)}` to remove it first."
+                f"Use <code>/crontab_edit {job_index} &lt;minutes&gt;</code> to update the schedule,\n"
+                f"or <code>/crontab_delete {len(existing_jobs)}</code> to remove it first.",
+                parse_mode="HTML"
             )
         return
 
-    assert minutes is not None
+    if minutes is None:
+        return  # Already handled by validate_job_index_and_minutes
     schedule, human = create_schedule_from_minutes(minutes)
     if schedule is None:
         if update.message:
@@ -160,7 +182,13 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
             )
         return
+    
+    # At this point, schedule is not None, so human should also not be None
+    assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
 
+    # Validate job_index for crontab safety (defense in depth)
+    assert isinstance(job_index, int) and job_index >= 1, f"Invalid job_index for crontab: {job_index}"
+    
     command = build_urlwatch_command(job_index)
     job = cron.new(command=command, comment=f"{CRONWATCH_COMMENT_PREFIX}{job_index}")
     job.setall(schedule)
@@ -182,12 +210,12 @@ async def crontab_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         url_name = url_entry.get("name", f"URL #{job_index}")
         url_url = url_entry.get("url", "")
 
-        summary = f"✅ Added scheduled job:\n\n📌 *{url_name}*\n   🔗 `{url_url}`\n   ⏰ Runs {human}\n   📋 Job #{len(list_urlwatch_jobs())} created."
-        await update.message.reply_text(summary, parse_mode="Markdown")
+        summary = f"✅ Added scheduled job:\n\n📌 {format_bold(url_name)}\n   🔗 {format_code(url_url)}\n   ⏰ Runs {escape_html(human)}\n   📋 Job #{len(list_urlwatch_jobs())} created."
+        await update.message.reply_text(summary, parse_mode="HTML")
 
 
 @auth_and_error_handler
-@validate_args(2, "❌ Usage: `/crontab_edit <index> <minutes>`\n📝 Example: `/crontab_edit 1 30`")
+@validate_args(2, "❌ Usage: <code>/crontab_edit &lt;index&gt; &lt;minutes&gt;</code>\n📝 Example: <code>/crontab_edit 1 30</code>")
 async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Edit the schedule of an existing cron job.
 
@@ -216,7 +244,8 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     # Create proper schedule using the same logic as crontab_add
-    assert minutes is not None
+    if minutes is None:
+        return  # Already handled by validate_job_index_and_minutes
     schedule, human = create_schedule_from_minutes(minutes)
     if schedule is None:
         if update.message:
@@ -224,6 +253,9 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 "❌ Invalid interval. Use <60 minutes, hour multiples, or day multiples."
             )
         return
+    
+    # At this point, schedule is not None, so human should also not be None
+    assert human is not None  # Type safety: create_schedule_from_minutes guarantees this
 
     # Modify the job from this cron instance
     job = jobs[job_index - 1]  # Convert to 0-based index
@@ -248,14 +280,14 @@ async def crontab_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             url_entry = urls[url_index - 1]
             url_name = url_entry.get("name", f"URL #{url_index}")
             url_url = url_entry.get("url", "")
-            summary = f"✅ Updated scheduled job:\n\n📌 *{url_name}*\n   🔗 `{url_url}`\n   ⏰ Now runs {human}\n   📋 Job #{job_index} updated."
-            await update.message.reply_text(summary, parse_mode="Markdown")
+            summary = f"✅ Updated scheduled job:\n\n📌 {format_bold(url_name)}\n   🔗 {format_code(url_url)}\n   ⏰ Now runs {escape_html(human)}\n   📋 Job #{job_index} updated."
+            await update.message.reply_text(summary, parse_mode="HTML")
         else:
             await update.message.reply_text(f"✅ Updated job {job_index}: runs {human}")
 
 
 @auth_and_error_handler
-@validate_args(1, "❌ Usage: `/crontab_delete <index>`")
+@validate_args(1, "❌ Usage: <code>/crontab_delete &lt;index&gt;</code>")
 async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Delete a scheduled cron job.
 
@@ -280,12 +312,13 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_error(update, "invalid_args")
         return
 
-    jobs = list_urlwatch_jobs()
+    # Get jobs from the same cron instance to avoid instance mismatch
+    cron = get_cron()
+    jobs = [job for job in cron if job.comment and job.comment.startswith(CRONWATCH_COMMENT_PREFIX)]
     if idx >= len(jobs):
         await send_error(update, "invalid_index", len(jobs))
         return
 
-    cron = get_cron()
     cron.remove(jobs[idx])
 
     try:
@@ -308,7 +341,7 @@ async def crontab_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             url_entry = urls[url_index - 1]
             url_name = url_entry.get("name", f"URL #{url_index}")
             url_url = url_entry.get("url", "")
-            summary = f"🗑 Deleted scheduled job:\n\n📌 *{url_name}*\n   🔗 `{url_url}`\n   📋 Job #{idx + 1} removed."
-            await update.message.reply_text(summary, parse_mode="Markdown")
+            summary = f"🗑 Deleted scheduled job:\n\n📌 {format_bold(url_name)}\n   🔗 {format_code(url_url)}\n   📋 Job #{idx + 1} removed."
+            await update.message.reply_text(summary, parse_mode="HTML")
         else:
             await update.message.reply_text(f"🗑 Deleted job {idx + 1}")

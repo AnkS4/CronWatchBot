@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 import shutil
 import tempfile
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -25,13 +25,10 @@ from helpers.urlwatch_helpers import (
     validate_index,
     validate_url,
 )
+from utils import escape_html, format_bold, format_code, format_pre
 
 MAX_OUTPUT_LENGTH = 3000
 MIN_ARGS = 2
-
-if TYPE_CHECKING:
-    from telegram import Update
-    from telegram.ext import ContextTypes
 
 
 async def _run_urlwatch_check(
@@ -62,15 +59,15 @@ async def _run_urlwatch_check(
         if process.returncode == 0 and stdout:
             output = stdout.decode().strip()
             if len(output) > MAX_OUTPUT_LENGTH:
-                output = output[:MAX_OUTPUT_LENGTH] + "...\n\n*(output truncated)*"
+                output = output[:MAX_OUTPUT_LENGTH] + "...\n\n<i>(output truncated)</i>"
 
-            summary = f"✅ Current output for {get_display_name(entry)}:\n\n```\n{output}\n```"
+            summary = f"✅ Current output for {escape_html(get_display_name(entry))}:\n\n{format_pre(output)}"
             if update.message:
-                await update.message.reply_text(summary, parse_mode="Markdown")
+                await update.message.reply_text(summary, parse_mode="HTML")
         else:
             error_msg = stderr.decode().strip() if stderr else "No output returned"
             if update.message:
-                await update.message.reply_text(f"⚠️ {error_msg} for {get_display_name(entry)}")
+                await update.message.reply_text(f"⚠️ {escape_html(error_msg)} for {escape_html(get_display_name(entry))}", parse_mode="HTML")
 
     except TimeoutError:
         process.kill()
@@ -78,7 +75,8 @@ async def _run_urlwatch_check(
         Path(temp_file).unlink(missing_ok=True)
         if update.message:
             await update.message.reply_text(
-                f"⏰ Timeout checking output for {get_display_name(entry)}"
+                f"⏰ Timeout checking output for {escape_html(get_display_name(entry))}",
+                parse_mode="HTML"
             )
 
 
@@ -99,23 +97,32 @@ def _auto_convert_type(value: str) -> bool | int | float | str:
         True
         >>> _auto_convert_type("42")
         42
+        >>> _auto_convert_type("-1")
+        -1
         >>> _auto_convert_type("3.14")
         3.14
+        >>> _auto_convert_type("-2.5")
+        -2.5
     """
     if value.lower() in ("true", "false"):
         return value.lower() == "true"
-    if value.isdigit():
+    try:
         return int(value)
-    if value.replace(".", "", 1).isdigit():
+    except ValueError:
+        pass
+    try:
         return float(value)
-    return value
+    except ValueError:
+        return value
 
 
 def _parse_filter_args(args: list[str]) -> list[Any]:
     """Parse filter arguments into urlwatch filter format."""
     filters: list[Any] = []
     for arg in args:
-        if ":" in arg and not arg.startswith("http"):
+        # Treat as filter if it contains ":" and doesn't start with common URL schemes
+        url_schemes = ("http://", "https://", "ftp://", "ftps://", "file://", "data:", "mailto:")
+        if ":" in arg and not arg.startswith(url_schemes):
             key, value = arg.split(":", 1)
             if "." in key:
                 main_key, sub_key = key.split(".", 1)
@@ -141,12 +148,12 @@ def _parse_property_args(args: list[str]) -> dict[str, Any]:
 async def _show_current_properties(update: Update, entry: dict[str, Any], idx: int) -> None:
     """Display current properties for a URL entry."""
     property_keys = ["timeout", "user_agent", "headers", "cookies", "ignore_connection_errors"]
-    props_display = [f"• `{key}`: {entry[key]}" for key in property_keys if key in entry]
+    props_display = [f"• {format_code(key)}: {escape_html(str(entry[key]))}" for key in property_keys if key in entry]
 
     if props_display and update.message:
         await update.message.reply_text(
             f"📋 Current properties for entry {idx + 1}:\n\n" + "\n".join(props_display),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
     elif update.message:
         await update.message.reply_text(f"Entry {idx + 1} has no custom properties set.")
@@ -205,27 +212,27 @@ async def view_urls(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if urls is None:
         return
 
-    msg = ["📋 *URLs:*\n"]
+    msg = ["📋 <b>URLs:</b>\n"]
     for i, entry in enumerate(urls, 1):
         name = get_display_name(entry)
-        msg.append(f"*{i}. {name}*\n   🌐 `{entry.get('url', 'No URL')}`")
+        msg.append(f"<b>{i}. {escape_html(name)}</b>\n   🌐 {format_code(entry.get('url', 'No URL'))}")
 
         if filters := entry.get("filter"):
             filters_str = (
                 ", ".join(str(f) for f in filters) if isinstance(filters, list) else str(filters)
             )
-            msg.append(f"   🔎 `{filters_str}`")
+            msg.append(f"   🔎 {format_code(filters_str)}")
 
         if props := [f"{k}: {v}" for k, v in entry.items() if k not in ("name", "url", "filter")]:
-            msg.append(f"   ⚙️ `{'; '.join(props)}`")
+            msg.append(f"   ⚙️ {format_code('; '.join(props))}")
 
     if update.message:
-        await update.message.reply_text("\n".join(msg), parse_mode="Markdown")
+        await update.message.reply_text("\n".join(msg), parse_mode="HTML")
 
 
 @auth_and_error_handler
 @validate_args(
-    1, "❌ Usage: `/add <url> [name]`\n📝 Example: `/add https://github.com/user/repo My Repo`"
+    1, "❌ Usage: <code>/add &lt;url&gt; [name]</code>\n📝 Example: <code>/add https://github.com/user/repo My Repo</code>"
 )
 async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Add a new URL to monitor.
@@ -267,11 +274,11 @@ async def add_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
         # Provide detailed feedback about the added URL
         summary = f"✅ Added new URL entry:\n\n{format_url_summary(new_entry, len(urls))}\n\n📋 Entry #{len(urls)} created."
-        await update.message.reply_text(summary, parse_mode="Markdown")
+        await update.message.reply_text(summary, parse_mode="HTML")
 
 
 @auth_and_error_handler
-@validate_args(2, "❌ Usage: `/edit <index> <url> [name]`")
+@validate_args(2, "❌ Usage: <code>/edit &lt;index&gt; &lt;url&gt; [name]</code>")
 async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Edit an existing URL entry.
 
@@ -318,19 +325,19 @@ async def edit_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message:
         await update.message.reply_text(
             f"✅ Updated URL entry {idx + 1}:\n\n{format_url_summary(urls[idx], idx + 1)}",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
 @auth_and_error_handler
 @validate_args(
     1,
-    """❌ Usage: `/editfilter <index> [filters...]`
+    """❌ Usage: <code>/editfilter &lt;index&gt; [filters...]</code>
 📝 Examples:
-• `/editfilter 1` - Remove filters
-• `/editfilter 1 html2text strip`
-• `/editfilter 1 xpath://*[@id="price"] html2text`
-• `/editfilter 1 css.selector:span.titleline > a html2text` - Nested filters""",
+• <code>/editfilter 1</code> - Remove filters
+• <code>/editfilter 1 html2text strip</code>
+• <code>/editfilter 1 xpath://*[@id="price"] html2text</code>
+• <code>/editfilter 1 css.selector:span.titleline &gt; a html2text</code> - Nested filters""",
 )
 async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Edit or remove filters for a URL entry.
@@ -363,7 +370,7 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if update.message:
             await update.message.reply_text(
                 f"✅ Removed filters from entry {idx + 1}:\n\n{format_url_summary(urls[idx], idx + 1)}",
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
         return
 
@@ -382,17 +389,17 @@ async def edit_url_filters(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Provide detailed feedback about the updated filters
         entry = urls[idx]
         summary = f"✅ Updated filters for entry {idx + 1}:\n\n{format_url_summary(entry, idx + 1)}"
-        await update.message.reply_text(summary, parse_mode="Markdown")
+        await update.message.reply_text(summary, parse_mode="HTML")
 
 
 @auth_and_error_handler
 @validate_args(
     1,
-    """❌ Usage: `/editprop <index> [prop:value...]`
+    """❌ Usage: <code>/editprop &lt;index&gt; [prop:value...]</code>
 📝 Examples:
-• `/editprop 1` - Show properties
-• `/editprop 1 timeout:30`
-• `/editprop 1 user_agent:MyBot headers.Accept:text/html`""",
+• <code>/editprop 1</code> - Show properties
+• <code>/editprop 1 timeout:30</code>
+• <code>/editprop 1 user_agent:MyBot headers.Accept:text/html</code>""",
 )
 async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Edit or view properties for a URL entry.
@@ -431,6 +438,16 @@ async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
         return
 
+    RESERVED_KEYS = {"url", "name", "filter"}
+    properties = {k: v for k, v in properties.items() if k not in RESERVED_KEYS}
+    if not properties:
+        if update.message:
+            await update.message.reply_text(
+                f"⚠️ No valid properties provided. Reserved keys ({', '.join(RESERVED_KEYS)}) "
+                "cannot be set via /editprop."
+            )
+        return
+
     for key, value in properties.items():
         if "." in key:
             keys = key.split(".")
@@ -449,12 +466,12 @@ async def edit_url_properties(update: Update, context: ContextTypes.DEFAULT_TYPE
     if update.message:
         await update.message.reply_text(
             f"✅ Updated properties for entry {idx + 1}:\n\n{format_url_summary(urls[idx], idx + 1)}",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 
 @auth_and_error_handler
-@validate_args(1, "❌ Usage: `/delete <index>`")
+@validate_args(1, "❌ Usage: <code>/delete &lt;index&gt;</code>")
 async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Delete a URL entry and update associated cron jobs.
 
@@ -484,29 +501,24 @@ async def delete_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await update.message.reply_text("❌ Failed to save changes. Please try again.")
         return
 
-    # Sync crontab indices after deletion
-    # Check if deleted entry had a crontab job
-    jobs = list_urlwatch_jobs()
-    deleted_job_existed = any(get_job_index_from_comment(job.comment) == idx + 1 for job in jobs)
-
-    # Update crontab indices
-    updated_indices = update_crontab_indices_after_deletion(idx + 1)
+    # Sync crontab indices after deletion using single CronTab instance
+    job_removed, updated_indices = update_crontab_indices_after_deletion(idx + 1)
 
     # Build notification message
     msg = f"🗑 Deleted URL entry:\n\n{format_url_summary(removed, idx + 1)}"
 
-    if deleted_job_existed:
+    if job_removed:
         msg += "\n\n⏰ Removed associated crontab job"
 
     if updated_indices:
         msg += f"\n🔄 Updated {len(updated_indices)} crontab job(s) to new indices"
 
     if update.message:
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        await update.message.reply_text(msg, parse_mode="HTML")
 
 
 @auth_and_error_handler
-@validate_args(1, "❌ Usage: `/check <index>`\n📝 Example: `/check 1`")
+@validate_args(1, "❌ Usage: <code>/check &lt;index&gt;</code>\n📝 Example: <code>/check 1</code>")
 async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Check and display current output of a URL with its filters applied.
 
@@ -531,7 +543,7 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     entry = urls[idx]
     if update.message:
-        await update.message.reply_text(f"🔍 Checking output for {get_display_name(entry)}...")
+        await update.message.reply_text(f"🔍 Checking output for {escape_html(get_display_name(entry))}...")
 
     temp_file = None
     try:
@@ -558,4 +570,4 @@ async def check_url_output(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if temp_file:
             Path(temp_file).unlink(missing_ok=True)
         if update.message:
-            await update.message.reply_text(f"❌ Failed to check output: {e!s}")
+            await update.message.reply_text(f"❌ Failed to check output: {escape_html(str(e))}", parse_mode="HTML")

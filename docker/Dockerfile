@@ -18,7 +18,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY config/ ./config/
 COPY handlers/ ./handlers/
 COPY helpers/ ./helpers/
+COPY utils/ ./utils/
 COPY main.py ./
+COPY README.md ./
+COPY LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
@@ -45,6 +48,7 @@ ENV PYTHONUNBUFFERED=1 \
 # because setting it would prevent the entrypoint from starting crond at all.
 RUN apk --no-cache upgrade && \
     apk add --no-cache su-exec busybox-suid \
+    # Security: Remove pip to reduce attack surface - uv-managed venv doesn't need pip
     && python -m pip uninstall -y pip \
     && adduser -D -u 1000 -s /sbin/nologin cronwatchbot \
     && mkdir -p /home/cronwatchbot/.config/urlwatch \

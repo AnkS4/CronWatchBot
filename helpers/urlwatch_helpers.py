@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import yaml
 
 from config.logging import logger
+from utils import escape_html, format_bold, format_code
 
 URLS_FILE = str(Path.home() / ".config" / "urlwatch" / "urls.yaml")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB maximum file size
@@ -105,7 +106,7 @@ def validate_url(url: str) -> bool:
 def get_display_name(entry: dict[str, Any]) -> str:
     """Get display name for URL entry.
 
-    Returns the 'name' field if present, otherwise falls back to 'url',
+    Returns the 'name' field if present and non-empty, otherwise falls back to 'url',
     or 'Unknown' if neither exists.
 
     Args:
@@ -117,51 +118,18 @@ def get_display_name(entry: dict[str, Any]) -> str:
     Examples:
         >>> get_display_name({"name": "My Site", "url": "https://example.com"})
         'My Site'
+        >>> get_display_name({"name": "", "url": "https://example.com"})
+        'https://example.com'
         >>> get_display_name({"url": "https://example.com"})
         'https://example.com'
     """
-    if "name" in entry:
-        return str(entry["name"])
-    if "url" in entry:
-        return str(entry["url"])
+    if name := entry.get("name"):
+        return str(name)
+    if url := entry.get("url"):
+        return str(url)
     return "Unknown"
 
 
-def find_url_by_name(urls: list[dict[str, Any]], name_or_index: str) -> int | None:
-    """Find URL index by name or index number.
-
-    Attempts to find a URL entry by:
-    1. First trying to parse as a 1-based numeric index
-    2. Then searching by name (case-insensitive)
-
-    Args:
-        urls: List of URL entry dictionaries.
-        name_or_index: Either a numeric index (1-based) or entry name.
-
-    Returns:
-        Optional[int]: Zero-based index if found, None otherwise.
-
-    Examples:
-        >>> urls = [{"name": "Site 1"}, {"name": "Site 2"}]
-        >>> find_url_by_name(urls, "1")
-        0
-        >>> find_url_by_name(urls, "site 2")
-        1
-    """
-    # Try to find by index first
-    try:
-        idx = int(name_or_index) - 1
-        if 0 <= idx < len(urls):
-            return idx
-    except ValueError:
-        pass
-
-    # Try to find by name
-    for i, entry in enumerate(urls):
-        if entry.get("name", "").lower() == name_or_index.lower():
-            return i
-
-    return None
 
 
 def format_url_summary(entry: dict[str, Any], index: int) -> str:
@@ -175,26 +143,26 @@ def format_url_summary(entry: dict[str, Any], index: int) -> str:
         index: 1-based index of the entry.
 
     Returns:
-        str: Formatted summary string with Markdown formatting.
+        str: Formatted summary string with HTML formatting.
 
     Example output:
-        📌 *Example Site*
-           🔗 `https://example.com`
-           🔎 `css:div.content, html2text`
-           ⚙️ `timeout: 30`
+        📌 <b>Example Site</b>
+           🔗 <code>https://example.com</code>
+           🔎 <code>css:div.content, html2text</code>
+           ⚙️ <code>timeout: 30</code>
     """
     name = get_display_name(entry)
     url = entry.get("url", "")
-    summary = f"📌 *{name}*\n   🔗 `{url}`"
+    summary = f"📌 {format_bold(name)}\n   🔗 {format_code(url)}"
 
     if filters := entry.get("filter"):
         filters_str = (
             ", ".join(str(f) for f in filters) if isinstance(filters, list) else str(filters)
         )
-        summary += f"\n   🔎 `{filters_str}`"
+        summary += f"\n   🔎 {format_code(filters_str)}"
 
     if props := [f"{k}: {v}" for k, v in entry.items() if k not in ("name", "url", "filter")]:
-        summary += f"\n   ⚙️ `{'; '.join(props)}`"
+        summary += f"\n   ⚙️ {format_code('; '.join(props))}"
 
     return summary
 

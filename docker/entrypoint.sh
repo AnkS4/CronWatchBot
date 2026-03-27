@@ -12,6 +12,10 @@ su-exec cronwatchbot mkdir -p "$URLWATCH_DIR"
 su-exec cronwatchbot touch "$URLWATCH_DIR/urls.yaml"
 
 if [ ! -f "$URLWATCH_DIR/urlwatch.yaml" ]; then
+    # SECURITY NOTE: Bot token is written to disk here because urlwatch does not
+    # support environment variable interpolation. Mitigations: chmod 600, non-root
+    # user ownership, container isolation. See README.md for security considerations.
+    #
     # tee opens the *output* file as cronwatchbot (correct ownership from birth).
     # The heredoc's stdin is the root shell's fd 0 — su-exec never touches it,
     # so there is no /dev/stdin permission issue.

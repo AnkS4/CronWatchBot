@@ -17,43 +17,25 @@ from handlers.crontab_manage import (
 from helpers.crontab_helpers import CRONWATCH_COMMENT_PREFIX
 
 
-@pytest.fixture
-def mock_update():
-    """Create a mock Telegram Update object."""
-    update = Mock(spec=Update)
-    update.effective_user = Mock(spec=User)
-    update.effective_user.id = 123456789
-    update.message = AsyncMock()
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    """Create a mock Telegram Context object."""
-    context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-    context.args = []
-    return context
-
-
 # Comprehensive tests for create_schedule_from_minutes
 
 
 @pytest.mark.parametrize(
     ("minutes", "expected_schedule", "expected_human"),
     [
-        (1, "*/1 * * * *", "every 1 minutes"),
+        (1, "*/1 * * * *", "every 1 minute"),
         (5, "*/5 * * * *", "every 5 minutes"),
         (10, "*/10 * * * *", "every 10 minutes"),
         (15, "*/15 * * * *", "every 15 minutes"),
         (30, "*/30 * * * *", "every 30 minutes"),
         (45, "*/45 * * * *", "every 45 minutes"),
-        (60, "0 */1 * * *", "every 1 hour(s)"),
-        (120, "0 */2 * * *", "every 2 hour(s)"),
-        (180, "0 */3 * * *", "every 3 hour(s)"),
-        (360, "0 */6 * * *", "every 6 hour(s)"),
-        (720, "0 */12 * * *", "every 12 hour(s)"),
-        (1440, "0 0 */1 * *", "every 1 day(s)"),
-        (2880, "0 0 */2 * *", "every 2 day(s)"),
+        (60, "0 */1 * * *", "every 1 hour"),
+        (120, "0 */2 * * *", "every 2 hours"),
+        (180, "0 */3 * * *", "every 3 hours"),
+        (360, "0 */6 * * *", "every 6 hours"),
+        (720, "0 */12 * * *", "every 12 hours"),
+        (1440, "0 0 */1 * *", "every 1 day"),
+        (2880, "0 0 */2 * *", "every 2 days"),
     ],
 )
 def test_create_schedule_from_minutes_all_valid(minutes, expected_schedule, expected_human):

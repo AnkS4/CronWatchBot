@@ -3,7 +3,7 @@
 [![Tests](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml/badge.svg)](https://github.com/AnkS4/CronWatchBot/actions/workflows/test.yml)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 A Telegram bot for managing and monitoring URLWatch jobs with automated scheduling via cron. Monitor websites for changes and receive instant Telegram notifications - all controlled through simple chat commands.
 
@@ -58,10 +58,9 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 ├── 📁 helpers/                   # Core business logic
 │   ├── crontab_helpers.py        # Crontab operations
 │   └── urlwatch_helpers.py       # URLWatch file operations
-├── � scripts/                   # Utility scripts
-│   ├── backup.sh                 # Backup URLWatch data & crontab
-│   ├── init-volumes.sh           # Initialize volumes & .env
-│   └── restore.sh                # Restore from backup
+├── 📁 utils/                     # Utility modules
+│   ├── __init__.py               # Package exports
+│   └── escape.py                 # HTML escaping for Telegram
 ├── � .env.example               # Environment variables template
 ├── 📜 LICENSE                    # MIT License
 ├── 🐍 main.py                    # Bot entry point
@@ -88,9 +87,6 @@ A Telegram bot for managing and monitoring URLWatch jobs with automated scheduli
 git clone https://github.com/AnkS4/CronWatchBot
 cd CronWatchBot
 
-# Initialize (optional), creates backups directory and `.env` file if needed
-# ./scripts/init-volumes.sh
-
 # Configure environment
 cp .env.example .env
 nano .env  # Add your bot token and user ID
@@ -107,6 +103,9 @@ That's it! Send `/start` to your bot on Telegram.
 **Management commands:**
 
 ```bash
+# Force build and start
+docker compose -f docker/docker-compose.yml up --build -d
+
 # View logs
 docker compose -f docker/docker-compose.yml logs -f
 
@@ -130,9 +129,6 @@ docker compose -f docker/docker-compose.yml restart
 # Clone the repository
 git clone https://github.com/AnkS4/CronWatchBot
 cd CronWatchBot
-
-# Initialize (optional), creates backups directory and `.env` file if needed
-# ./scripts/init-volumes.sh
 
 # Configure environment
 cp .env.example .env
@@ -255,51 +251,22 @@ All data is stored in Docker volumes:
 - **`urlwatch-data`** - URLWatch configuration, monitored URLs, and cache
 - **`crontab-data`** - Scheduled cron jobs
 
-### Backup
-
-**Quick backup (recommended):**
+**Data persists automatically** across container restarts:
 ```bash
-./scripts/backup.sh
-```
-
-Creates timestamped backups in `backups/` directory:
-- URLWatch configuration and URLs
-- Crontab data
-- Crontab entries (if container is running)
-
-**Manual backup:**
-```bash
-docker run --rm \
-  -v docker_urlwatch-data:/data \
-  -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/urlwatch-$(date +%Y-%m-%d).tar.gz -C /data .
-```
-
-### Restore
-
-**Quick restore (recommended):**
-```bash
-./scripts/restore.sh <timestamp>
-
-# Example:
-./scripts/restore.sh 2026-03-22-161530
-```
-
-Lists available backups if no timestamp provided.
-
-**Manual restore:**
-```bash
-# Stop container first
+# Stop container
 docker compose -f docker/docker-compose.yml down
 
-# Restore data
-docker run --rm \
-  -v docker_urlwatch-data:/data \
-  -v $(pwd)/backups:/backup \
-  alpine tar xzf /backup/urlwatch-YYYY-MM-DD.tar.gz -C /data
-
-# Restart container
+# Start container - all data restored automatically
 docker compose -f docker/docker-compose.yml up -d
+```
+
+**Export URLs for safekeeping** (optional):
+```bash
+# Export your URL list (no secrets)
+docker exec cronwatchbot cat /home/cronwatchbot/.config/urlwatch/urls.yaml > urls-backup.yaml
+
+# Import later by copying back
+docker cp urls-backup.yaml cronwatchbot:/home/cronwatchbot/.config/urlwatch/urls.yaml
 ```
 
 ### Volume Management
@@ -460,8 +427,8 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 - **config/** - Configuration and logging setup
 - **handlers/** - Telegram command handlers (`/start`, `/help`, `/add`, `/crontab_*`, etc.)
 - **helpers/** - Core business logic (crontab operations, URLWatch file management)
+- **utils/** - Utility modules (HTML escaping for Telegram messages)
 - **docker/** - Docker configuration (Dockerfile, docker-compose.yml, entrypoint.sh)
-- **scripts/** - Utility scripts (backup, restore, init-volumes)
 - **main.py** - Bot entry point, command registration, and crontab reload on startup
 
 **Code Quality:**
@@ -477,7 +444,8 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 ### Authentication & Authorization
 - **User ID Whitelist**: Only Telegram user IDs in `ALLOWED_USER_IDS` can use the bot
 - **No Public Access**: Bot rejects all unauthorized users
-- **Token Security**: Bot token stored in environment variables, never in code
+- **Rate Limiting**: 2 commands per second per user to prevent flooding
+- **Token Storage**: Bot token stored in environment variables and written to `urlwatch.yaml` (see [Token Security Considerations](#token-security-considerations))
 
 ### Container Security
 
@@ -515,11 +483,31 @@ BusyBox crond requires root privileges to read `/var/spool/cron/crontabs/<user>`
 - **Index Validation**: Strict bounds checking on all array access
 - **Atomic File Operations**: Prevents data corruption during concurrent writes
 
+### Token Security Considerations
+
+**Known Limitation:** The Telegram bot token is written to `/home/cronwatchbot/.config/urlwatch/urlwatch.yaml` because urlwatch does not support environment variable interpolation in its configuration files.
+
+**Mitigations in place:**
+- ✅ File permissions set to `600` (owner read/write only)
+- ✅ File owned by non-root `cronwatchbot` user (UID 1000)
+- ✅ Volume access restricted to container
+- ✅ Container isolation limits exposure
+
+**Additional security recommendations:**
+- 🔒 Use Docker volume encryption if available on your platform
+- 🔒 Restrict host access to Docker volumes directory
+- 🔒 Use Telegram bot token rotation periodically via [@BotFather](https://t.me/botfather)
+- 🔒 Monitor bot activity for unauthorized usage
+- 🔒 Avoid mounting volumes to untrusted locations
+
+**Trade-off:** This is an architectural limitation of urlwatch. The token must be on disk for urlwatch to send notifications. The file permissions and container isolation provide reasonable protection for most use cases.
+
 ### Best Practices
 - ✅ Never commit `.env` file (automatically gitignored)
 - ✅ Limit `ALLOWED_USER_IDS` to trusted users only
 - ✅ Monitor container logs for suspicious activity
-- ✅ Use simplified configuration for easier maintenance
+- ✅ Rotate bot token periodically
+- ✅ Export `urls.yaml` periodically for safekeeping
 - ✅ Verify security hardening with provided commands
 
 ---

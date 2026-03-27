@@ -20,24 +20,6 @@ from handlers.urlwatch_manage import (
 
 
 @pytest.fixture
-def mock_update():
-    """Create a mock Telegram Update object."""
-    update = Mock(spec=Update)
-    update.effective_user = Mock(spec=User)
-    update.effective_user.id = 123456789
-    update.message = AsyncMock()
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    """Create a mock Telegram Context object."""
-    context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-    context.args = []
-    return context
-
-
-@pytest.fixture
 def temp_urls_file(tmp_path, monkeypatch):
     """Create a temporary URLs file for testing."""
     urls_file = tmp_path / "urls.yaml"
@@ -353,7 +335,7 @@ async def test_delete_url_success(
     """Test successfully deleting a URL."""
     mock_load_urls.return_value = [{"url": "https://example.com", "name": "Example"}]
     mock_save_urls.return_value = True
-    mock_update_cron.return_value = []
+    mock_update_cron.return_value = (False, [])
     mock_context.args = ["1"]
 
     await delete_url(mock_update, mock_context)
@@ -378,7 +360,7 @@ async def test_delete_url_with_cron_updates(
         {"url": "https://site3.com"},
     ]
     mock_save_urls.return_value = True
-    mock_update_cron.return_value = [2]  # Job 3 became job 2
+    mock_update_cron.return_value = (True, [2])  # Job 3 became job 2
     mock_context.args = ["2"]
 
     await delete_url(mock_update, mock_context)
@@ -491,7 +473,7 @@ async def test_delete_url_save_failure(mock_load_urls, mock_save_urls, mock_upda
     mock_context.args = ["1"]
 
     with patch("handlers.urlwatch_manage.update_crontab_indices_after_deletion") as mock_cron:
-        mock_cron.return_value = []
+        mock_cron.return_value = (False, [])
         await delete_url(mock_update, mock_context)
 
     mock_update.message.reply_text.assert_called()

@@ -134,10 +134,11 @@ def test_update_crontab_indices_removes_deleted_job(mock_get_cron, mock_list_job
 
     mock_list_jobs.return_value = [job1, job2, job3]
 
-    result = update_crontab_indices_after_deletion(2)
+    job_removed, updated_indices = update_crontab_indices_after_deletion(2)
 
     mock_cron.remove.assert_called_once_with(job2)
-    assert 2 in result
+    assert job_removed is True
+    assert 2 in updated_indices
     job3.set_command.assert_called_once_with("urlwatch 2")
     job3.set_comment.assert_called_once_with(f"{CRONWATCH_COMMENT_PREFIX}2")
     mock_cron.write.assert_called_once()
@@ -156,12 +157,14 @@ def test_update_crontab_indices_updates_higher_indices(mock_get_cron, mock_list_
 
     mock_list_jobs.return_value = [job1, job3, job5]
 
-    result = update_crontab_indices_after_deletion(2)
+    job_removed, updated_indices = update_crontab_indices_after_deletion(2)
 
     job1.set_command.assert_not_called()
     job3.set_command.assert_called_once_with("urlwatch 2")
     job5.set_command.assert_called_once_with("urlwatch 4")
-    assert result == [2, 4]
+    mock_cron.write.assert_called_once()
+    assert job_removed is False  # No job with index 2 exists to remove
+    assert updated_indices == [2, 4]
 
 
 @patch("helpers.crontab_helpers.list_urlwatch_jobs")
@@ -174,10 +177,12 @@ def test_update_crontab_indices_ignores_invalid_comments(mock_get_cron, mock_lis
     job_invalid = Mock(comment="invalid-comment")
     mock_list_jobs.return_value = [job_invalid]
 
-    result = update_crontab_indices_after_deletion(1)
+    job_removed, updated_indices = update_crontab_indices_after_deletion(1)
 
-    assert result == []
+    assert job_removed is False
+    assert updated_indices == []
     mock_cron.remove.assert_not_called()
+    mock_cron.write.assert_called_once()
 
 
 @patch("helpers.crontab_helpers.list_urlwatch_jobs")
@@ -192,7 +197,8 @@ def test_update_crontab_indices_handles_write_error(mock_logger, mock_get_cron, 
     job1 = Mock(comment=f"{CRONWATCH_COMMENT_PREFIX}2")
     mock_list_jobs.return_value = [job1]
 
-    result = update_crontab_indices_after_deletion(1)
+    job_removed, updated_indices = update_crontab_indices_after_deletion(1)
 
-    assert result == []
+    assert job_removed is False
+    assert updated_indices == []
     mock_logger.error.assert_called_once()

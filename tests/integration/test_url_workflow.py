@@ -11,24 +11,6 @@ from helpers.urlwatch_helpers import load_urls
 
 
 @pytest.fixture
-def mock_update():
-    """Create a mock Telegram Update object."""
-    update = Mock(spec=Update)
-    update.effective_user = Mock(spec=User)
-    update.effective_user.id = 123456789
-    update.message = AsyncMock()
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    """Create a mock Telegram Context object."""
-    context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-    context.args = []
-    return context
-
-
-@pytest.fixture
 def temp_urls_file(tmp_path, monkeypatch):
     """Create a temporary URLs file for testing."""
     urls_file = tmp_path / "urls.yaml"
@@ -61,7 +43,7 @@ async def test_add_list_delete_url_workflow(mock_update, mock_context, temp_urls
     with patch(
         "handlers.urlwatch_manage.update_crontab_indices_after_deletion"
     ) as mock_update_cron:
-        mock_update_cron.return_value = []
+        mock_update_cron.return_value = (False, [])
         await delete_url(mock_update, mock_context)
 
     # Verify URL was deleted
@@ -114,7 +96,7 @@ async def test_multiple_urls_workflow(mock_update, mock_context, temp_urls_file)
     with patch(
         "handlers.urlwatch_manage.update_crontab_indices_after_deletion"
     ) as mock_update_cron:
-        mock_update_cron.return_value = []
+        mock_update_cron.return_value = (True, [1])
         await delete_url(mock_update, mock_context)
 
     # Verify correct URL was deleted

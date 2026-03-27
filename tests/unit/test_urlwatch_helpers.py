@@ -7,7 +7,6 @@ import pytest
 
 from helpers.urlwatch_helpers import (
     MAX_FILE_SIZE,
-    find_url_by_name,
     format_url_summary,
     get_display_name,
     load_urls,
@@ -184,56 +183,15 @@ def test_validate_url_invalid(invalid_url):
         ({"name": "My Site", "url": "https://example.com"}, "My Site"),
         ({"url": "https://example.com"}, "https://example.com"),
         ({}, "Unknown"),
-        ({"name": "", "url": "https://example.com"}, ""),
+        ({"name": "", "url": "https://example.com"}, "https://example.com"),  # Fixed: empty name falls back to URL
+        ({"name": None, "url": "https://example.com"}, "https://example.com"),  # Added: None name falls back to URL
     ],
-    ids=["with_name", "without_name", "no_fields", "empty_name"],
+    ids=["with_name", "without_name", "no_fields", "empty_name", "none_name"],
 )
 def test_get_display_name(entry, expected):
     """Test display name extraction from URL entries."""
     assert get_display_name(entry) == expected
 
-
-def test_find_url_by_name_by_index():
-    """Test finding URLs by numeric index."""
-    urls = [
-        {"name": "Site 1", "url": "https://example1.com"},
-        {"name": "Site 2", "url": "https://example2.com"},
-        {"name": "Site 3", "url": "https://example3.com"},
-    ]
-
-    assert find_url_by_name(urls, "1") == 0
-    assert find_url_by_name(urls, "2") == 1
-    assert find_url_by_name(urls, "3") == 2
-
-
-def test_find_url_by_name_by_name():
-    """Test finding URLs by name (case-insensitive)."""
-    urls = [
-        {"name": "Site 1", "url": "https://example1.com"},
-        {"name": "Site 2", "url": "https://example2.com"},
-    ]
-
-    assert find_url_by_name(urls, "Site 1") == 0
-    assert find_url_by_name(urls, "Site 2") == 1
-    assert find_url_by_name(urls, "site 1") == 0
-    assert find_url_by_name(urls, "SITE 2") == 1
-
-
-@pytest.mark.parametrize(
-    "search_term",
-    ["Nonexistent", "99", "0", "-1"],
-    ids=["nonexistent_name", "out_of_range", "zero_index", "negative_index"],
-)
-def test_find_url_by_name_not_found(search_term):
-    """Test that invalid search terms return None."""
-    urls = [{"name": "Site 1", "url": "https://example1.com"}]
-    assert find_url_by_name(urls, search_term) is None
-
-
-def test_find_url_by_name_empty_list():
-    """Test searching in an empty URL list."""
-    assert find_url_by_name([], "1") is None
-    assert find_url_by_name([], "anything") is None
 
 
 def test_format_url_summary_basic():

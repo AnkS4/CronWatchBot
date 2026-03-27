@@ -9,24 +9,6 @@ from telegram.ext import ContextTypes
 from handlers.basic import help_command, start, unknown
 
 
-@pytest.fixture
-def mock_update():
-    """Create a mock Telegram Update object."""
-    update = Mock(spec=Update)
-    update.effective_user = Mock(spec=User)
-    update.effective_user.id = 123456789
-    update.message = AsyncMock()
-    return update
-
-
-@pytest.fixture
-def mock_context():
-    """Create a mock Telegram Context object."""
-    context = Mock(spec=ContextTypes.DEFAULT_TYPE)
-    context.args = []
-    return context
-
-
 # Comprehensive tests for help_command
 
 
